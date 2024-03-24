@@ -13,6 +13,7 @@ os.system('cls' if os.name == 'nt' else 'clear')
 is_logged_in = False
 current_user = ""
 
+
 def public_menu():
     global is_logged_in
     print("Public Menu")
@@ -33,9 +34,12 @@ def public_menu():
         print("Login")
         print()
         username = input("Enter your username: ")
-        password = input("Enter your password: ")
-        is_logged_in = login_user(username, password)
-        current_user = username
+        password = input("Enter your password (enter 'r' to redo the login): ")
+        if password == 'r':
+            login()
+        else:
+            is_logged_in = login_user(username, password)
+            current_user = username
 
     def explore_blockchain():
         os.system('cls' if os.name == 'nt' else 'clear')
@@ -65,9 +69,10 @@ def public_menu():
 
     switch.get(choice, default)()
 
+
 def logged_in_menu():
     global is_logged_in
-    global current_user  
+    global current_user
     print("User currently logged in: " + current_user)
     # print("Account Balance:" + account_balance)
     print()
@@ -110,12 +115,12 @@ def logged_in_menu():
         # mine a block logic goes here
 
     def logout():
-        global is_logged_in  # Declare is_logged_in as a global variable
-        global current_user  # Declare current_user as a global variable
+        global is_logged_in
+        global current_user
         os.system('cls' if os.name == 'nt' else 'clear')
         print("User " + current_user + " logged out successfully!")
         current_user = ""
-        is_logged_in = False  # Set is_logged_in to False
+        is_logged_in = False
         print()
         public_menu()
 
@@ -135,6 +140,7 @@ def logged_in_menu():
     }
 
     switch.get(choice, default)()
+
 
 if __name__ == "__main__":
     while True:
