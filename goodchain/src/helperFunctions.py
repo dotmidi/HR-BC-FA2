@@ -11,8 +11,7 @@ from cryptography.hazmat.primitives.asymmetric import padding
 from cryptography.hazmat.primitives import serialization
 import hashlib
 
-
-def create_relational_database():
+def create_user_database():
     # setup connection for database
     database_path = os.path.join(os.path.dirname(
         os.path.dirname(__file__)), 'data', 'goodchain.db')
@@ -99,6 +98,6 @@ def login_user(username, password):
         return True
     else:
         os.system('cls' if os.name == 'nt' else 'clear')
-        print("**Invalid username or password, please try again.**")
+        print("**Invalid username or password, please register or try again.**")
         print()
         return False

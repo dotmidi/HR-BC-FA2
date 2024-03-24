@@ -1,16 +1,20 @@
+import os
+
 from helperFunctions import (
-    create_relational_database,
+    create_user_database,
     register_user,
     login_user,
 )
 
-import os
-
-create_relational_database()
+create_user_database()
 
 os.system('cls' if os.name == 'nt' else 'clear')
 
+is_logged_in = False
+current_user = ""
+
 def public_menu():
+    global is_logged_in
     print("Public Menu")
     print()
     print("Welcome to Goodchain!")
@@ -23,19 +27,18 @@ def public_menu():
     choice = input("Enter your choice: ")
 
     def login():
+        global is_logged_in
+        global current_user
         os.system('cls' if os.name == 'nt' else 'clear')
         print("Login")
         print()
         username = input("Enter your username: ")
         password = input("Enter your password: ")
         is_logged_in = login_user(username, password)
-        if is_logged_in:
-            current_user = username
-            logged_in_menu()
-        else:
-            public_menu()
+        current_user = username
 
     def explore_blockchain():
+        os.system('cls' if os.name == 'nt' else 'clear')
         print("Explore the blockchain")
         # explore blockchain logic goes here
 
@@ -63,7 +66,10 @@ def public_menu():
     switch.get(choice, default)()
 
 def logged_in_menu():
+    global is_logged_in
+    global current_user  
     print("User currently logged in: " + current_user)
+    # print("Account Balance:" + account_balance)
     print()
     print("1. Transfer coins")
     print("2. Check Balance")
@@ -104,8 +110,12 @@ def logged_in_menu():
         # mine a block logic goes here
 
     def logout():
+        global is_logged_in  # Declare is_logged_in as a global variable
+        global current_user  # Declare current_user as a global variable
         os.system('cls' if os.name == 'nt' else 'clear')
-        print("You have been logged out.")
+        print("User " + current_user + " logged out successfully!")
+        current_user = ""
+        is_logged_in = False  # Set is_logged_in to False
         print()
         public_menu()
 
@@ -126,12 +136,9 @@ def logged_in_menu():
 
     switch.get(choice, default)()
 
-# Check if the user is logged in
-current_user = ""
-is_logged_in = False  # Replace with your login logic
-
-while True:
-    if is_logged_in:
-        logged_in_menu()
-    else:
-        public_menu()
+if __name__ == "__main__":
+    while True:
+        if is_logged_in:
+            logged_in_menu()
+        else:
+            public_menu()
