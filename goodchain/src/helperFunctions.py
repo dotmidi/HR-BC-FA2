@@ -53,24 +53,14 @@ def register_user(username, password):
     # hash the password
     password = hashlib.sha256(password.encode('utf-8')).hexdigest()
 
-    # Generate private and public key
-    private_key = rsa.generate_private_key(
-        public_exponent=65537, key_size=2048)
-    public_key = private_key.public_key()
-
+    # Generate private and public keys
+    private_key, public_key = generate_keys()
     private_key = private_key.private_bytes(
         encoding=serialization.Encoding.PEM,
         format=serialization.PrivateFormat.PKCS8,
         encryption_algorithm=serialization.NoEncryption()
     ).decode('utf-8')
-
-    public_key = public_key.public_bytes(
-        encoding=serialization.Encoding.PEM,
-        format=serialization.PublicFormat.SubjectPublicKeyInfo
-    ).decode('utf-8')
-
-    # print(private_key)
-    # print(public_key)
+    public_key = public_key.decode('utf-8')
 
     os.system('cls' if os.name == 'nt' else 'clear')
     print("User " + username + " registered successfully!")
@@ -108,8 +98,10 @@ def login_user(username, password):
         print()
         return False
 
+
 def generate_keys():
-    private_key = rsa.generate_private_key(public_exponent=65537,key_size=2048)
+    private_key = rsa.generate_private_key(
+        public_exponent=65537, key_size=2048)
     public_key = private_key.public_key()
 
     pbc_ser = public_key.public_bytes(
@@ -117,14 +109,17 @@ def generate_keys():
         format=serialization.PublicFormat.SubjectPublicKeyInfo)
     return private_key, pbc_ser
 
+
 def sign(message, private_key):
     message = bytes(str(message), 'utf-8')
     signature = private_key.sign(
         message,
-        padding.PSS(mgf=padding.MGF1(hashes.SHA256()), salt_length=padding.PSS.MAX_LENGTH),
+        padding.PSS(mgf=padding.MGF1(hashes.SHA256()),
+                    salt_length=padding.PSS.MAX_LENGTH),
         hashes.SHA256()
-        )
+    )
     return signature
+
 
 def verify(message, signature, pbc_ser):
     message = bytes(str(message), 'utf-8')
@@ -134,12 +129,12 @@ def verify(message, signature, pbc_ser):
             signature,
             message,
             padding.PSS(mgf=padding.MGF1(hashes.SHA256()),
-            salt_length=padding.PSS.MAX_LENGTH),
+                        salt_length=padding.PSS.MAX_LENGTH),
             hashes.SHA256()
-            )
+        )
         return True
     except InvalidSignature:
-         return False
+        return False
     except:
         print("Error executing 'public_key.verify'")
         return False

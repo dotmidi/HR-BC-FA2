@@ -3,15 +3,17 @@ from cryptography.hazmat.primitives import hashes
 
 from helperFunctions import *
 
-class CBlock:
 
+class CBlock:
     data = None
     previousHash = None
     previousBlock = None
 
     def __init__(self, data, previousBlock):
         self.data = data
+        self.blockHash = None
         self.previousBlock = previousBlock
+        self.nonce = 0
         if previousBlock != None:
             self.previousHash = previousBlock.computeHash()
 
@@ -23,8 +25,15 @@ class CBlock:
 
     def is_valid(self):
         if self.previousBlock == None:
-            return True
-        return self.previousBlock.computeHash() == self.previousHash
+            if self.blockHash == self.computeHash():
+                return True
+            else:
+                return False
+        else:
+            # return self.previousBlock.computeHash() == self.previousHash
+            current_block_validity = self.blockHash == self.computeHash()
+            previous_block_validity = self.previousBlock.is_valid()
+            return current_block_validity and previous_block_validity
 
 
 class Tx:
@@ -32,6 +41,9 @@ class Tx:
     outputs = None
     sigs = None
     reqd = None
+    REWARD_VALUE = 50.0
+    NORMAL = 0
+    REWARD = 1
 
     def __init__(self):
         self.inputs = []
@@ -92,3 +104,39 @@ class Tx:
         data.append(self.outputs)
         data.append(self.reqd)
         return data
+
+
+class TxBlock (CBlock):
+
+    def __init__(self, previousBlock):
+        super(TxBlock, self).__init__([], previousBlock)
+
+    def addTx(self, Tx_in):
+        self.data.append(Tx_in)
+
+    def is_valid(self):
+        if not super(TxBlock, self).is_valid():
+            return False
+        for tx in self.data:
+            if not tx.is_valid():
+                return False
+        return True
+
+    def mine(self, leading_zero):
+        digest = hashes.Hash(hashes.SHA256(), backend=default_backend())
+        digest.update(bytes(str(self.data), 'utf-8'))
+        digest.update(bytes(str(self.previousHash), 'utf-8'))
+
+        found = False
+        nonce = 0
+        while not found:
+            h = digest.copy()
+            h.update(bytes(str(nonce), 'utf-8'))
+            hash = h.finalize()
+            if hash[:leading_zero] == bytes('0'*leading_zero, 'utf-8'):
+                if int(hash[leading_zero]) < timing_variable:
+                    found = True
+                    self.nonce = nonce
+            nonce += 1
+            del h
+        self.blockHash = self.computeHash()
