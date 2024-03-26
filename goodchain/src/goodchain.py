@@ -1,12 +1,15 @@
 import os
+import pickle
 
 from helperFunctions import (
     create_user_database,
+    create_ledger_database,
     register_user,
     login_user,
 )
 
 create_user_database()
+create_ledger_database()
 
 os.system('cls' if os.name == 'nt' else 'clear')
 
@@ -43,8 +46,39 @@ def public_menu():
 
     def explore_blockchain():
         os.system('cls' if os.name == 'nt' else 'clear')
-        print("Explore the blockchain")
-        # explore blockchain logic goes here
+        # open the ledger.dat file in read mode
+        ledger_path = os.path.join(os.path.dirname(
+            os.path.dirname(__file__)), 'data', 'ledger.dat')
+
+        # check if the ledger file exists
+        if not os.path.exists(ledger_path):
+            print("No blocks found in the blockchain.")
+            print()
+            return
+
+        # read the ledger file
+        with open(ledger_path, 'rb') as ledger_file:
+            try:
+                blocks = pickle.load(ledger_file)
+            except EOFError:
+                print("No blocks found in the blockchain.")
+                print()
+                input("Press Enter to return to the main menu...")
+                os.system('cls' if os.name == 'nt' else 'clear')
+                return
+
+            # iterate through the blocks in the blockchain
+            i = 1
+            for block in blocks:
+                print("Block " + str(i))
+                print("Block Data: " + str(block.data))
+                print("Block Hash: " + str(block.blockHash))
+                print("Previous Hash: " + str(block.previousHash))
+                print()
+                i += 1
+
+        # wait for an input to return to the main menu
+        input("Press Enter to return to the main menu...")
 
     def sign_up():
         os.system('cls' if os.name == 'nt' else 'clear')
@@ -73,6 +107,7 @@ def public_menu():
 def logged_in_menu():
     global is_logged_in
     global current_user
+    os.system('cls' if os.name == 'nt' else 'clear')
     print("User currently logged in: " + current_user)
     # print("Account Balance:" + account_balance)
     print()
@@ -103,8 +138,41 @@ def logged_in_menu():
         # explore blockchain logic goes here
 
     def check_pool():
-        print("Check the Pool")
-        # check the pool logic goes here
+        os.system('cls' if os.name == 'nt' else 'clear')
+        # open the pool.dat file in read mode
+        pool_path = os.path.join(os.path.dirname(
+            os.path.dirname(__file__)), 'data', 'pool.dat')
+
+        # check if the pool file exists
+        if not os.path.exists(pool_path):
+            print("No transactions found in the pool.")
+            print()
+            return
+
+        # read the pool file
+        with open(pool_path, 'rb') as pool_file:
+            try:
+                # load the transactions from the pool file
+                transactions = pickle.load(pool_file)
+            except EOFError:
+                print("No transactions found in the pool.")
+                print()
+                input("Press Enter to return to the main menu...")
+                os.system('cls' if os.name == 'nt' else 'clear')
+                return
+
+            # iterate through the transactions in the pool
+            i = 1
+            for tx in transactions:
+                print("Transaction " + str(i))
+                print("Transaction Inputs: " + str(tx.inputs))
+                print("Transaction Outputs: " + str(tx.outputs))
+                # print("Transaction Signatures: " + str(tx.sigs))
+                print()
+                i += 1
+
+        # wait for an input to return to the main menu
+        input("Press Enter to return to the main menu...")
 
     def cancel_transaction():
         print("Cancel a Transaction")

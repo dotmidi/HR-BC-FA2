@@ -10,6 +10,8 @@ from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.asymmetric import padding
 from cryptography.hazmat.primitives import serialization
 import hashlib
+from dataStructures import *
+import pickle
 
 
 def create_user_database():
@@ -30,7 +32,40 @@ def create_user_database():
 
 
 def create_ledger_database():
-    pass
+    # open ledger.dat file in write mode
+    ledger_path = os.path.join(os.path.dirname(
+        os.path.dirname(__file__)), 'data', 'ledger.dat')
+
+    # check if the ledger file already exists
+    if os.path.exists(ledger_path):
+        # print("Ledger file already exists.")
+        return
+
+    # create the ledger file
+    with open(ledger_path, 'wb') as ledger_file:
+        pass
+
+    # create pool file
+    pool_path = os.path.join(os.path.dirname(
+        os.path.dirname(__file__)), 'data', 'pool.dat')
+
+    # check if the pool file already exists
+    if os.path.exists(pool_path):
+        # print("Pool file already exists.")
+        return
+
+    # create the pool file
+    with open(pool_path, 'wb') as pool_file:
+        pass
+
+    # # use the CBlock class to create the ledger
+    # # create the genesis block
+    # genesis_block = CBlock("Genesis Block", None)
+    # genesis_block.blockHash = genesis_block.computeHash()
+
+    # # write the genesis block to the ledger file
+    # with open(ledger_path, 'wb') as ledger_file:
+    #     ledger_file.write(pickle.dumps(genesis_block))
 
 
 def register_user(username, password):
@@ -54,23 +89,40 @@ def register_user(username, password):
     password = hashlib.sha256(password.encode('utf-8')).hexdigest()
 
     # Generate private and public keys
-    private_key, public_key = generate_keys()
-    private_key = private_key.private_bytes(
-        encoding=serialization.Encoding.PEM,
-        format=serialization.PrivateFormat.PKCS8,
-        encryption_algorithm=serialization.NoEncryption()
-    ).decode('utf-8')
-    public_key = public_key.decode('utf-8')
+    private_key, public_key = Signature.generate_keys()
 
-    os.system('cls' if os.name == 'nt' else 'clear')
-    print("User " + username + " registered successfully!")
-    print("You have received 50 GoodCoins for signing up!")
-    print()
+    # grant 50 GoodCoins to the user
+    pool_path = os.path.join(os.path.dirname(
+        os.path.dirname(__file__)), 'data', 'pool.dat')
+    with open(pool_path, 'rb') as pool_file:
+        try:
+            pool = pickle.load(pool_file)
+        except EOFError:
+            pool = []
+
+    tx = Tx(type=REWARD)
+    tx.add_input("SIGN UP REWARD", 50)
+    tx.add_output(username, 50)
+    tx.sign(private_key)
+
+    if not tx.is_valid():
+        raise Exception("Invalid transaction")
+
+    pool.append(tx)
+
+    with open(pool_path, 'wb') as pool_file:
+        pickle.dump(pool, pool_file)
 
     # Insert user into database
     cursor.execute('INSERT INTO registered_users VALUES (?, ?, ?, ?)',
                    (username, password, private_key, public_key))
     connection.commit()
+    connection.close()
+
+    os.system('cls' if os.name == 'nt' else 'clear')
+    print("User " + username + " registered successfully!")
+    print("You have received 50 GoodCoins for signing up!")
+    print()
 
     return True
 
@@ -96,45 +148,4 @@ def login_user(username, password):
         os.system('cls' if os.name == 'nt' else 'clear')
         print("**Invalid username or password, please register or try again.**")
         print()
-        return False
-
-
-def generate_keys():
-    private_key = rsa.generate_private_key(
-        public_exponent=65537, key_size=2048)
-    public_key = private_key.public_key()
-
-    pbc_ser = public_key.public_bytes(
-        encoding=serialization.Encoding.PEM,
-        format=serialization.PublicFormat.SubjectPublicKeyInfo)
-    return private_key, pbc_ser
-
-
-def sign(message, private_key):
-    message = bytes(str(message), 'utf-8')
-    signature = private_key.sign(
-        message,
-        padding.PSS(mgf=padding.MGF1(hashes.SHA256()),
-                    salt_length=padding.PSS.MAX_LENGTH),
-        hashes.SHA256()
-    )
-    return signature
-
-
-def verify(message, signature, pbc_ser):
-    message = bytes(str(message), 'utf-8')
-    public_key = serialization.load_pem_public_key(pbc_ser)
-    try:
-        public_key.verify(
-            signature,
-            message,
-            padding.PSS(mgf=padding.MGF1(hashes.SHA256()),
-                        salt_length=padding.PSS.MAX_LENGTH),
-            hashes.SHA256()
-        )
-        return True
-    except InvalidSignature:
-        return False
-    except:
-        print("Error executing 'public_key.verify'")
         return False
