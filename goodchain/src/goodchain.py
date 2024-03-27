@@ -8,6 +8,9 @@ from helperFunctions import (
     login_user,
 )
 
+from dataStructures import *
+import time
+
 create_user_database()
 create_ledger_database()
 
@@ -79,6 +82,7 @@ def public_menu():
 
         # wait for an input to return to the main menu
         input("Press Enter to return to the main menu...")
+        os.system('cls' if os.name == 'nt' else 'clear')
 
     def sign_up():
         os.system('cls' if os.name == 'nt' else 'clear')
@@ -179,8 +183,72 @@ def logged_in_menu():
         # cancel a transaction logic goes here
 
     def mine_block():
-        print("Mine a block")
-        # mine a block logic goes here
+        # mine the first 5 transactions in the pool
+
+        # open the pool.dat file in read mode
+        pool_path = os.path.join(os.path.dirname(
+            os.path.dirname(__file__)), 'data', 'pool.dat')
+
+        # check if the pool file exists
+        if not os.path.exists(pool_path):
+            print("No transactions found in the pool.")
+            print()
+            return
+
+        # read the pool file
+        with open(pool_path, 'rb') as pool_file:
+            try:
+                # load the transactions from the pool file
+                transactions = pickle.load(pool_file)
+            except EOFError:
+                print("No transactions found in the pool.")
+                print()
+                return
+
+            # open the ledger.dat file in read mode
+            ledger_path = os.path.join(os.path.dirname(
+                os.path.dirname(__file__)), 'data', 'ledger.dat')
+
+            # read the ledger file
+            with open(ledger_path, 'rb') as ledger_file:
+                try:
+                    blocks = pickle.load(ledger_file)
+                except EOFError:
+                    blocks = []
+
+            # create a new block
+            if len(blocks) == 0:
+                new_block = TxBlock(None)  # Genesis block
+            else:
+                new_block = TxBlock(blocks[-1])
+
+            # add the transactions to the new block
+            for tx in transactions:
+                new_block.addTx(tx)
+
+            # mine the block
+            start_time = time.time()
+            new_block.mine(2)
+            end_time = time.time()
+            mining_time = end_time - start_time
+            print("Block mined successfully in", mining_time, "seconds!")
+
+            # add the block to the ledger
+            blocks.append(new_block)
+
+            # write the new ledger to the ledger file
+            with open(ledger_path, 'wb') as ledger_file:
+                pickle.dump(blocks, ledger_file)
+
+            # remove the mined transactions from the pool
+            transactions = transactions[5:]
+
+            # write the new pool to the pool file
+            with open(pool_path, 'wb') as pool_file:
+                pickle.dump(transactions, pool_file)
+
+        print("Block mined successfully!")
+        input("Press Enter to return to the main menu...")
 
     def logout():
         global is_logged_in

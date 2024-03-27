@@ -7,6 +7,7 @@ from cryptography.hazmat.primitives.asymmetric import rsa
 REWARD_VALUE = 50.0
 NORMAL = 0
 REWARD = 1
+timing_variable = 10
 
 class CBlock:
     data = None
@@ -114,7 +115,6 @@ class Tx:
 
 
 class TxBlock (CBlock):
-
     def __init__(self, previousBlock):
         super(TxBlock, self).__init__([], previousBlock)
 
