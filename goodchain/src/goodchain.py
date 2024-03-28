@@ -112,7 +112,6 @@ def logged_in_menu():
     global current_user
     os.system('cls' if os.name == 'nt' else 'clear')
     print("User currently logged in: " + current_user)
-    # print("Account Balance:" + account_balance)
     print()
     print("1. Transfer coins")
     print("2. Check Balance")
@@ -124,17 +123,12 @@ def logged_in_menu():
     print()
     choice = input("Enter your choice: ")
 
-    def view_profile():
-        print("View Profile")
-        # view profile logic goes here
-
     def send_goodcoins():
         print("Send GoodCoins")
         # send GoodCoins logic goes here
 
     def check_balance():
-        print("Check Balance")
-        # check balance logic goes here
+        check_user_balance(current_user)
 
     def explore_blockchain():
         os.system('cls' if os.name == 'nt' else 'clear')
@@ -271,7 +265,7 @@ def logged_in_menu():
 
             if mine_block_choice != 'y':
                 return
-                
+
             # create a new block
             if len(blocks) == 0:
                 new_block = TxBlock(None)  # Genesis block

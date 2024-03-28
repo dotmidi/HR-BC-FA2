@@ -162,3 +162,47 @@ def login_user(username, password):
         print("**Invalid username or password, please register or try again.**")
         print()
         return False
+
+def check_user_balance(username):
+    # setup connection for database
+    database_path = os.path.join(os.path.dirname(
+        os.path.dirname(__file__)), 'data', 'goodchain.db')
+    connection = sqlite3.connect(database_path)
+    cursor = connection.cursor()
+
+    # Check if username exists
+    cursor.execute(
+        'SELECT * FROM registered_users WHERE username = ?', (username,))
+    user = cursor.fetchone()
+    if user:
+        # get the public key
+        public_key = user[3]
+    else:
+        os.system('cls' if os.name == 'nt' else 'clear')
+        print("**Invalid username, please try again.**")
+        print()
+        return False
+
+    # get the balance from the ledger
+    balance = 0
+    ledger_path = os.path.join(os.path.dirname(
+        os.path.dirname(__file__)), 'data', 'ledger.dat')
+    with open(ledger_path, 'rb') as ledger_file:
+        try:
+            while True:
+                block = pickle.load(ledger_file)
+                for txBlock in block:
+                    for tx in txBlock.data:
+                        # if tx.type == REWARD and tx.outputs[0][0] == username:
+                        #     balance += tx.outputs[0][1]
+                        for addr, amount in tx.outputs:
+                            if addr == username:
+                                balance += amount
+        except EOFError:
+            pass
+
+    os.system('cls' if os.name == 'nt' else 'clear')
+    print("Balance for " + username + ": " + str(balance) + " GoodCoins")
+    print()
+    input("Press Enter to continue...")
+    return
