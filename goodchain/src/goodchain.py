@@ -67,12 +67,26 @@ def public_menu():
             # iterate through the blocks in the blockchain
             i = 1
             for block in blocks:
+                os.system('cls' if os.name == 'nt' else 'clear')
                 print("Block " + str(i))
-                print("Block Data: " + str(block.data))
+                print("Transaction Data:")
+                print()
+                # print like this: <TYPE> | <AMOUNT> From <FROM> To <TO>
+                for tx in block.data:
+                    if tx.type == REWARD:
+                        print("REWARD | " + str(tx.outputs[0][1]) + " From " + str(tx.outputs[0][0]) + " To " + str(tx.outputs[0][0]))
+                    else:
+                        for addr, amount in tx.inputs:
+                            print("NORMAL | " + str(amount) + " From " + str(addr), end=' ')
+                        for addr, amount in tx.outputs:
+                            print("To " + str(addr))
+                print()
                 print("Block Hash: " + str(block.blockHash))
                 print("Previous Hash: " + str(block.previousHash))
                 print()
-            i += 1
+                i += 1
+                if i != len(blocks) + 1:
+                    input("Press Enter to view the next block...")
 
             input("Press Enter to return to the main menu...")
             os.system('cls' if os.name == 'nt' else 'clear')
@@ -191,6 +205,14 @@ def logged_in_menu():
                 os.system('cls' if os.name == 'nt' else 'clear')
                 return
 
+            # if there are no transactions in the pool, print a message and return to the main menu
+            if len(transactions) == 0:
+                print("No transactions found in the pool.")
+                print()
+                input("Press Enter to return to the main menu...")
+                os.system('cls' if os.name == 'nt' else 'clear')
+                return
+
             # iterate through the transactions in the pool
             i = 1
             for tx in transactions:
@@ -252,6 +274,7 @@ def logged_in_menu():
 
             # print info about the transactions in the pool, and ask the user if they want to mine the block
             print("Transactions in the pool:")
+            print()
             i = 1
             for tx in transactions:
                 print("Transaction " + str(i))
@@ -260,8 +283,15 @@ def logged_in_menu():
                 print()
                 i += 1
 
+            # if the pool has less than 5 transactions, tell the user that the block cannot be mined.
+            if len(transactions) < 5:
+                print("There are less than 5 transactions in the pool, the block cannot be mined.")
+                print()
+                input("Press Enter to return to the main menu...")
+                return
+            
             mine_block_choice = input(
-                "Do you want to mine the block with the first 5 transactions in the pool? (y/n): ")
+                "Do you want to mine the block with the first 10 transactions in the pool? (y/n): ")
 
             if mine_block_choice != 'y':
                 return
@@ -273,8 +303,11 @@ def logged_in_menu():
                 new_block = TxBlock(blocks[-1])
 
             # add the transactions to the new block
-            for tx in transactions:
-                new_block.addTx(tx)
+            for i, tx in enumerate(transactions):
+                if i < 10:
+                    new_block.addTx(tx)
+                else:
+                    break
 
             # mine the block
             start_time = time.time()
