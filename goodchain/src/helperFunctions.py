@@ -69,6 +69,20 @@ def create_ledger_database():
 
 
 def register_user(username, password):
+    # check if username is atleast 3 characters long and contains only alphanumeric characters
+    if len(username) < 3 or not re.match("^[a-zA-Z0-9_]*$", username):
+        os.system('cls' if os.name == 'nt' else 'clear')
+        print("**Invalid username, please try again.**")
+        print()
+        return False
+
+    # check if password is atleast 5 characters long and contains atleast one uppercase letter, one lowercase letter, one digit and one special character
+    if len(password) < 5 or not re.match("^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]*$", password):
+        os.system('cls' if os.name == 'nt' else 'clear')
+        print("**Invalid password, please try again.**")
+        print()
+        return False
+
     # setup connection for database
     database_path = os.path.join(os.path.dirname(
         os.path.dirname(__file__)), 'data', 'goodchain.db')
@@ -103,7 +117,6 @@ def register_user(username, password):
     tx = Tx(type=REWARD)
     tx.add_input("SIGN UP REWARD", 50)
     tx.add_output(username, 50)
-    tx.sign(private_key)
 
     if not tx.is_valid():
         raise Exception("Invalid transaction")

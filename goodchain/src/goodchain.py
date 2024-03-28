@@ -1,13 +1,7 @@
 import os
 import pickle
 
-from helperFunctions import (
-    create_user_database,
-    create_ledger_database,
-    register_user,
-    login_user,
-)
-
+from helperFunctions import *
 from dataStructures import *
 import time
 
@@ -78,19 +72,21 @@ def public_menu():
                 print("Block Hash: " + str(block.blockHash))
                 print("Previous Hash: " + str(block.previousHash))
                 print()
-                i += 1
+            i += 1
 
-        # wait for an input to return to the main menu
-        input("Press Enter to return to the main menu...")
-        os.system('cls' if os.name == 'nt' else 'clear')
+            input("Press Enter to return to the main menu...")
+            os.system('cls' if os.name == 'nt' else 'clear')
+            return
 
     def sign_up():
         os.system('cls' if os.name == 'nt' else 'clear')
         print("Sign up")
         print("You will receive 50 GoodCoins for signing up!")
         print()
-        username = input("Enter your username: ")
-        password = input("Enter your password: ")
+        username = input(
+            "Enter your username (at least 3 characters long and unique): ")
+        password = input(
+            "Enter your password (at least 5 characters long, 1 uppercase letter, 1 lowercase letter, 1 digit and 1 special character): ")
         register_user(username, password)
 
     def default():
@@ -105,7 +101,10 @@ def public_menu():
         '4': lambda: print("Goodbye!") or exit()
     }
 
-    switch.get(choice, default)()
+    try:
+        switch.get(choice, default)()
+    except TypeError:
+        print("Invalid choice, please try again.")
 
 
 def logged_in_menu():
@@ -138,8 +137,41 @@ def logged_in_menu():
         # check balance logic goes here
 
     def explore_blockchain():
-        print("Explore the blockchain")
-        # explore blockchain logic goes here
+        os.system('cls' if os.name == 'nt' else 'clear')
+        # open the ledger.dat file in read mode
+        ledger_path = os.path.join(os.path.dirname(
+            os.path.dirname(__file__)), 'data', 'ledger.dat')
+
+        # check if the ledger file exists
+        if not os.path.exists(ledger_path):
+            print("No blocks found in the blockchain.")
+            print()
+            return
+
+        # read the ledger file
+        with open(ledger_path, 'rb') as ledger_file:
+            try:
+                blocks = pickle.load(ledger_file)
+            except EOFError:
+                print("No blocks found in the blockchain.")
+                print()
+                input("Press Enter to return to the main menu...")
+                os.system('cls' if os.name == 'nt' else 'clear')
+                return
+
+            # iterate through the blocks in the blockchain
+            i = 1
+            for block in blocks:
+                print("Block " + str(i))
+                print("Block Data: " + str(block.data))
+                print("Block Hash: " + str(block.blockHash))
+                print("Previous Hash: " + str(block.previousHash))
+                print()
+            i += 1
+
+            input("Press Enter to return to the main menu...")
+            os.system('cls' if os.name == 'nt' else 'clear')
+            return
 
     def check_pool():
         os.system('cls' if os.name == 'nt' else 'clear')
@@ -183,6 +215,7 @@ def logged_in_menu():
         # cancel a transaction logic goes here
 
     def mine_block():
+        os.system('cls' if os.name == 'nt' else 'clear')
         # mine the first 5 transactions in the pool
 
         # open the pool.dat file in read mode
@@ -200,9 +233,16 @@ def logged_in_menu():
             try:
                 # load the transactions from the pool file
                 transactions = pickle.load(pool_file)
+                # check if there are valid transactions in the pool
+                if len(transactions) == 0:
+                    print("No transactions found in the pool.")
+                    print()
+                    input("Press Enter to return to the main menu...")
+                    return
             except EOFError:
                 print("No transactions found in the pool.")
                 print()
+                input("Press Enter to return to the main menu...")
                 return
 
             # open the ledger.dat file in read mode
@@ -216,6 +256,22 @@ def logged_in_menu():
                 except EOFError:
                     blocks = []
 
+            # print info about the transactions in the pool, and ask the user if they want to mine the block
+            print("Transactions in the pool:")
+            i = 1
+            for tx in transactions:
+                print("Transaction " + str(i))
+                print("Transaction Inputs: " + str(tx.inputs))
+                print("Transaction Outputs: " + str(tx.outputs))
+                print()
+                i += 1
+
+            mine_block_choice = input(
+                "Do you want to mine the block with the first 5 transactions in the pool? (y/n): ")
+
+            if mine_block_choice != 'y':
+                return
+                
             # create a new block
             if len(blocks) == 0:
                 new_block = TxBlock(None)  # Genesis block
@@ -275,7 +331,10 @@ def logged_in_menu():
         '7': logout
     }
 
-    switch.get(choice, default)()
+    try:
+        switch.get(choice, default)()
+    except TypeError:
+        print("Invalid choice, please try again.")
 
 
 if __name__ == "__main__":
