@@ -4,6 +4,7 @@ import pickle
 from helperFunctions import *
 from dataStructures import *
 import time
+import datetime
 
 create_user_database()
 create_ledger_database()
@@ -74,13 +75,17 @@ def public_menu():
                 # print like this: <TYPE> | <AMOUNT> From <FROM> To <TO>
                 for tx in block.data:
                     if tx.type == REWARD:
-                        print("REWARD | " + str(tx.outputs[0][1]) + " From " + str(tx.outputs[0][0]) + " To " + str(tx.outputs[0][0]))
+                        print("REWARD | " + str(tx.outputs[0][1]) + " From " + str(
+                            tx.outputs[0][0]) + " To " + str(tx.outputs[0][0]))
                     else:
                         for addr, amount in tx.inputs:
-                            print("NORMAL | " + str(amount) + " From " + str(addr), end=' ')
+                            print("NORMAL | " + str(amount) +
+                                  " From " + str(addr), end=' ')
                         for addr, amount in tx.outputs:
                             print("To " + str(addr))
                 print()
+                print("Date of Creation: " + str(block.dateOfCreation))
+                print("Mined by: " + str(block.minedBy))
                 print("Block Hash: " + str(block.blockHash))
                 print("Previous Hash: " + str(block.previousHash))
                 print()
@@ -126,6 +131,8 @@ def logged_in_menu():
     global current_user
     os.system('cls' if os.name == 'nt' else 'clear')
     print("User currently logged in: " + current_user)
+    # print the current balance
+    check_user_balance(current_user)
     print()
     print("1. Transfer coins")
     print("2. Check Balance")
@@ -170,12 +177,28 @@ def logged_in_menu():
             # iterate through the blocks in the blockchain
             i = 1
             for block in blocks:
+                os.system('cls' if os.name == 'nt' else 'clear')
                 print("Block " + str(i))
-                print("Block Data: " + str(block.data))
+                print("Transaction Data:")
+                print()
+                # print like this: <TYPE> | <AMOUNT> From <FROM> To <TO>
+                for tx in block.data:
+                    if tx.type == REWARD:
+                        print("REWARD | " + str(tx.outputs[0][1]) + " From " + str(
+                            tx.outputs[0][0]) + " To " + str(tx.outputs[0][0]))
+                    else:
+                        for addr, amount in tx.inputs:
+                            print("NORMAL | " + str(amount) +
+                                  " From " + str(addr), end=' ')
+                        for addr, amount in tx.outputs:
+                            print("To " + str(addr))
+                print()
                 print("Block Hash: " + str(block.blockHash))
                 print("Previous Hash: " + str(block.previousHash))
                 print()
-            i += 1
+                i += 1
+                if i != len(blocks) + 1:
+                    input("Press Enter to view the next block...")
 
             input("Press Enter to return to the main menu...")
             os.system('cls' if os.name == 'nt' else 'clear')
@@ -285,11 +308,12 @@ def logged_in_menu():
 
             # if the pool has less than 5 transactions, tell the user that the block cannot be mined.
             if len(transactions) < 5:
-                print("There are less than 5 transactions in the pool, the block cannot be mined.")
+                print(
+                    "There are less than 5 transactions in the pool, the block cannot be mined.")
                 print()
                 input("Press Enter to return to the main menu...")
                 return
-            
+
             mine_block_choice = input(
                 "Do you want to mine the block with the first 10 transactions in the pool? (y/n): ")
 
@@ -315,7 +339,9 @@ def logged_in_menu():
             end_time = time.time()
             mining_time = end_time - start_time
             print("Block mined successfully in", mining_time, "seconds!")
-
+            new_block.minedBy = current_user
+            new_block.dateOfCreation = datetime.datetime.now()
+            
             # add the block to the ledger
             blocks.append(new_block)
 

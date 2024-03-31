@@ -201,8 +201,25 @@ def check_user_balance(username):
         except EOFError:
             pass
 
-    os.system('cls' if os.name == 'nt' else 'clear')
+    # os.system('cls' if os.name == 'nt' else 'clear')
     print("Balance for " + username + ": " + str(balance) + " GoodCoins")
-    print()
-    input("Press Enter to continue...")
-    return
+    # print()
+    # input("Press Enter to continue...")
+    # return
+    
+def validate_block():
+    # open ledger.dat file in read mode
+    ledger_path = os.path.join(os.path.dirname(
+        os.path.dirname(__file__)), 'data', 'ledger.dat')
+    with open(ledger_path, 'rb') as ledger_file:
+        try:
+            while True:
+                block = pickle.load(ledger_file)
+                for txBlock in block:
+                    for tx in txBlock.data:
+                        if not tx.is_valid():
+                            return False
+        except EOFError:
+            pass
+
+    return True

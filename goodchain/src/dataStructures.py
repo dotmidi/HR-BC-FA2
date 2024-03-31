@@ -3,6 +3,7 @@ from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.asymmetric import padding
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
+import time
 
 REWARD_VALUE = 50.0
 NORMAL = 0
@@ -21,6 +22,8 @@ class CBlock:
         self.nonce = 0
         if previousBlock != None:
             self.previousHash = previousBlock.computeHash()
+        self.dateOfCreation = None
+        self.minedBy = None
 
     def computeHash(self):
         digest = hashes.Hash(hashes.SHA256(), backend=default_backend())
