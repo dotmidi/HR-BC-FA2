@@ -175,14 +175,14 @@ def logged_in_menu():
                 return
 
             # iterate through the blocks in the blockchain
-            i = 1
-            for block in blocks:
+            i = len(blocks)
+            while i > 0:
                 os.system('cls' if os.name == 'nt' else 'clear')
                 print("Block " + str(i))
                 print("Transaction Data:")
                 print()
                 # print like this: <TYPE> | <AMOUNT> From <FROM> To <TO>
-                for tx in block.data:
+                for tx in blocks[i-1].data:
                     if tx.type == REWARD:
                         print("REWARD | " + str(tx.outputs[0][1]) + " From " + str(
                             tx.outputs[0][0]) + " To " + str(tx.outputs[0][0]))
@@ -193,12 +193,23 @@ def logged_in_menu():
                         for addr, amount in tx.outputs:
                             print("To " + str(addr))
                 print()
-                print("Block Hash: " + str(block.blockHash))
-                print("Previous Hash: " + str(block.previousHash))
+                print("Block Hash: " + str(blocks[i-1].blockHash))
+                print("Previous Hash: " + str(blocks[i-1].previousHash))
                 print()
-                i += 1
-                if i != len(blocks) + 1:
-                    input("Press Enter to view the next block...")
+                # check the amount of flags
+                flag_count = blocks[i-1].flags
+                if flag_count < 3:
+                    print("Block has " + str(flag_count) + "/3 flags, not validated yet.")
+                    # run is_valid on the block to validate it
+                    if blocks[i-1].blockHash == blocks[i-1].mine(2):
+                        print("Block is valid. 1 flag added.")
+                        # add a flag
+                        blocks[i-1].flags.append(True)
+                    else:
+                        print("Block is not valid.")
+                i -= 1
+                if i != 0:
+                    input("Press Enter to view the previous block...")
 
             input("Press Enter to return to the main menu...")
             os.system('cls' if os.name == 'nt' else 'clear')
@@ -341,6 +352,12 @@ def logged_in_menu():
             print("Block mined successfully in", mining_time, "seconds!")
             new_block.minedBy = current_user
             new_block.dateOfCreation = datetime.datetime.now()
+            
+            # validate the block
+            if not new_block.is_valid():
+                print("Block is not valid.")
+                input("Press Enter to return to the main menu...")
+                return
             
             # add the block to the ledger
             blocks.append(new_block)

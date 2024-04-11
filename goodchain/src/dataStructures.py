@@ -24,11 +24,13 @@ class CBlock:
             self.previousHash = previousBlock.computeHash()
         self.dateOfCreation = None
         self.minedBy = None
+        self.flags = 0
 
     def computeHash(self):
         digest = hashes.Hash(hashes.SHA256(), backend=default_backend())
         digest.update(bytes(str(self.data), 'utf8'))
         digest.update(bytes(str(self.previousHash), 'utf8'))
+        digest.update(bytes(str(self.nonce), 'utf8'))
         return digest.finalize()
 
     def is_valid(self):
@@ -36,6 +38,7 @@ class CBlock:
             if self.blockHash == self.computeHash():
                 return True
             else:
+                print(self.blockHash, self.computeHash())
                 return False
         else:
             # return self.previousBlock.computeHash() == self.previousHash
