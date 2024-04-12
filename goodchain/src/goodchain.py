@@ -135,21 +135,98 @@ def logged_in_menu():
     check_user_balance(current_user)
     print()
     print("1. Transfer coins")
-    print("2. Check Balance")
-    print("3. Explore the blockchain")
-    print("4. Check the Pool")
-    print("5. Cancel a Transaction")
-    print("6. Mine a block")
-    print("7. Log out")
+    print("2. Explore the blockchain")
+    print("3. Check the Pool")
+    print("4. Cancel a Transaction")
+    print("5. Mine a block")
+    print("6. Log out")
     print()
     choice = input("Enter your choice: ")
 
     def send_goodcoins():
+        os.system('cls' if os.name == 'nt' else 'clear')
         print("Send GoodCoins")
-        # send GoodCoins logic goes here
 
-    def check_balance():
-        check_user_balance(current_user)
+        # open the pool.dat file in read mode
+        pool_path = os.path.join(os.path.dirname(
+            os.path.dirname(__file__)), 'data', 'pool.dat')
+
+        # check if the pool file exists
+        if not os.path.exists(pool_path):
+            print("No transactions found in the pool.")
+            print()
+            return
+
+        # read the pool file
+        with open(pool_path, 'rb') as pool_file:
+            try:
+                # load the transactions from the pool file
+                transactions = pickle.load(pool_file)
+            except EOFError:
+                print("No transactions found in the pool.")
+                print()
+                input("Press Enter to return to the main menu...")
+                os.system('cls' if os.name == 'nt' else 'clear')
+                return
+
+            # ask for the recipient, input, output and fee
+            recipient = input("Enter the recipient's username: ")
+            tx_input = int(input("Enter the input amount: "))
+            tx_output = int(input("Enter the output amount: "))
+            fee = int(input("Enter the fee: "))
+
+            # if the input is less than the output and fee, print an invalid tx message and return to the main menu
+            if tx_input < tx_output + fee:
+                print("Invalid transaction, input is less than output + fee.")
+                print()
+                input("Press Enter to return to the main menu...")
+                os.system('cls' if os.name == 'nt' else 'clear')
+                return
+
+            # check if recipient exists
+            if not check_user_exists(recipient):
+                print("Recipient does not exist.")
+                print()
+                input("Press Enter to return to the main menu...")
+                os.system('cls' if os.name == 'nt' else 'clear')
+                return
+
+            # check if recipient is the sender
+            if recipient == current_user:
+                print("Recipient cannot be the same as the sender.")
+                print()
+                input("Press Enter to return to the main menu...")
+                os.system('cls' if os.name == 'nt' else 'clear')
+                return
+
+            # check if the user has enough balance
+            if check_user_balance(current_user) < tx_input + fee:
+                print("Not enough balance to send the transaction.")
+                print()
+                input("Press Enter to return to the main menu...")
+                os.system('cls' if os.name == 'nt' else 'clear')
+                return
+
+            # get the user's private key
+            private_key = get_user_private_key(current_user)
+
+            # create a new transaction
+            new_tx = Tx()
+            new_tx.add_input(current_user, tx_input)
+            new_tx.add_output(recipient, tx_output)
+            new_tx.add_fee(fee)
+            new_tx.sign(private_key)
+
+            # add the transaction to the pool
+            transactions.append(new_tx)
+
+            # write the new pool to the pool file
+            with open(pool_path, 'wb') as pool_file:
+                pickle.dump(transactions, pool_file)
+
+            print("Transaction added to the pool successfully!")
+            input("Press Enter to return to the main menu...")
+            os.system('cls' if os.name == 'nt' else 'clear')
 
     def explore_blockchain():
         os.system('cls' if os.name == 'nt' else 'clear')
@@ -199,10 +276,10 @@ def logged_in_menu():
                 # check the amount of flags
                 flag_count = blocks[i-1].flags
                 if flag_count < 3:
-                    print("Block has " + str(flag_count) + "/3 flags, not validated yet.")
+                    print("Block has " + str(flag_count) +
+                          "/3 flags, not validated yet.")
                     # run is_valid on the block to validate it
-                    if blocks[i-1].blockHash == blocks[i-1].mine(2):
-                        print("Block is valid. 1 flag added.")
+                    if blocks[i-1].is_valid():
                         # add a flag
                         blocks[i-1].flags.append(True)
                     else:
@@ -253,6 +330,7 @@ def logged_in_menu():
                 print("Transaction " + str(i))
                 print("Transaction Inputs: " + str(tx.inputs))
                 print("Transaction Outputs: " + str(tx.outputs))
+                print("Transaction Fee: " + str(tx.fee))
                 # print("Transaction Signatures: " + str(tx.sigs))
                 print()
                 i += 1
@@ -261,8 +339,68 @@ def logged_in_menu():
         input("Press Enter to return to the main menu...")
 
     def cancel_transaction():
+        os.system('cls' if os.name == 'nt' else 'clear')
         print("Cancel a Transaction")
-        # cancel a transaction logic goes here
+        # print all the transactions that the logged in user has in the pool
+        with open(os.path.join(os.path.dirname(os.path.dirname(__file__)), 'data', 'pool.dat'), 'rb') as pool_file:
+            try:
+                transactions = pickle.load(pool_file)
+            except EOFError:
+                print("No transactions found in the pool.")
+                print()
+                input("Press Enter to return to the main menu...")
+                return
+
+        # only print the transactions that the user has in the pool
+        user_transactions = []
+        for tx in transactions:
+            if tx.inputs[0][0] == current_user:
+                user_transactions.append(tx)
+
+        if len(user_transactions) == 0:
+            print("User does not have any transactions in the pool.")
+            print()
+            input("Press Enter to return to the main menu...")
+            return
+
+        i = 1
+        for tx in user_transactions:
+            print("Transaction " + str(i))
+            print("Transaction Inputs: " + str(tx.inputs))
+            print("Transaction Outputs: " + str(tx.outputs))
+            print()
+            i += 1
+
+        # ask the user to choose a transaction to cancel
+        choice = input("Enter the number of the transaction you want to cancel (enter 'r' to return to the main menu): ")
+
+        # remove the transaction from the pool
+        if choice == 'r':
+            return
+        
+        try:
+            choice = int(choice)
+        except ValueError:
+            print("Invalid choice, please try again.")
+            return
+
+        if choice < 1 or choice > len(user_transactions):
+            print("Invalid choice, please try again.")
+            return
+
+        transactions.remove(user_transactions[choice - 1])
+
+        with open(os.path.join(os.path.dirname(os.path.dirname(__file__)), 'data', 'pool.dat'), 'wb') as pool_file:
+            pickle.dump(transactions, pool_file)
+
+        print("Transaction cancelled successfully!")
+        input("Press Enter to return to the main menu...")
+        return
+
+
+        # write the new pool to the pool file
+        # print a message that the transaction was cancelled successfully
+        # wait for an input to return to the main menu
 
     def mine_block():
         os.system('cls' if os.name == 'nt' else 'clear')
@@ -352,13 +490,13 @@ def logged_in_menu():
             print("Block mined successfully in", mining_time, "seconds!")
             new_block.minedBy = current_user
             new_block.dateOfCreation = datetime.datetime.now()
-            
+
             # validate the block
             if not new_block.is_valid():
                 print("Block is not valid.")
                 input("Press Enter to return to the main menu...")
                 return
-            
+
             # add the block to the ledger
             blocks.append(new_block)
 
@@ -393,12 +531,11 @@ def logged_in_menu():
 
     switch = {
         '1': send_goodcoins,
-        '2': check_balance,
-        '3': explore_blockchain,
-        '4': check_pool,
-        '5': cancel_transaction,
-        '6': mine_block,
-        '7': logout
+        '2': explore_blockchain,
+        '3': check_pool,
+        '4': cancel_transaction,
+        '5': mine_block,
+        '6': logout
     }
 
     try:

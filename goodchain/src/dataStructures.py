@@ -52,12 +52,14 @@ class Tx:
     outputs = None
     sigs = None
     reqd = None
+    fee = None
     def __init__(self, type = NORMAL):
         self.type = type
         self.inputs = []
         self.outputs = []
         self.sigs = []
         self.reqd = []
+        self.fee = []
 
     def add_input(self, from_addr, amount):
         self.inputs.append((from_addr, amount))
@@ -67,6 +69,9 @@ class Tx:
 
     def add_reqd(self, addr):
         self.reqd.append(addr)
+
+    def add_fee(self, fee):
+        self.fee.append(fee)
 
     def sign(self, private):
         message = self.__gather()

@@ -203,9 +203,31 @@ def check_user_balance(username):
 
     # os.system('cls' if os.name == 'nt' else 'clear')
     print("Balance for " + username + ": " + str(balance) + " GoodCoins")
-    # print()
-    # input("Press Enter to continue...")
-    # return
+
+    # check if the user has any pending transactions in the pool and print a seperate message with their pending balance after transactions are confirmed
+    pool_path = os.path.join(os.path.dirname(
+        os.path.dirname(__file__)), 'data', 'pool.dat')
+
+    with open(pool_path, 'rb') as pool_file:
+        try:
+            pool = pickle.load(pool_file)
+        except EOFError:
+            pool = []
+
+    pending_balance = balance
+    for tx in pool:
+        for addr, amount in tx.outputs:
+            if addr == username:
+                pending_balance += amount
+        for addr, amount in tx.inputs:
+            if addr == username:
+                pending_balance -= amount
+
+    if pending_balance > 0:
+        print("Pending balance for " + username + ": " + str(pending_balance) + " GoodCoins")
+        print()
+
+    return balance
     
 def validate_block():
     # open ledger.dat file in read mode
@@ -223,3 +245,32 @@ def validate_block():
             pass
 
     return True
+
+def check_user_exists(username):
+    # setup connection for database
+    database_path = os.path.join(os.path.dirname(
+        os.path.dirname(__file__)), 'data', 'goodchain.db')
+    connection = sqlite3.connect(database_path)
+    cursor = connection.cursor()
+
+    # Check if username exists
+    cursor.execute(
+        'SELECT * FROM registered_users WHERE username = ?', (username,))
+    user = cursor.fetchone()
+    if user:
+        return True
+    else:
+        return False
+
+def get_user_private_key(username):
+    # setup connection for database
+    database_path = os.path.join(os.path.dirname(
+        os.path.dirname(__file__)), 'data', 'goodchain.db')
+    connection = sqlite3.connect(database_path)
+    cursor = connection.cursor()
+
+    # Check if username exists
+    cursor.execute(
+        'SELECT * FROM registered_users WHERE username = ?', (username,))
+    user = cursor.fetchone()
+    return user[2]
