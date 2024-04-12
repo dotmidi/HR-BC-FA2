@@ -202,7 +202,7 @@ def check_user_balance(username):
             pass
 
     # os.system('cls' if os.name == 'nt' else 'clear')
-    print("Balance for " + username + ": " + str(balance) + " GoodCoins")
+    print("Current balance for " + username + ": " + str(balance) + " GoodCoins")
 
     # check if the user has any pending transactions in the pool and print a seperate message with their pending balance after transactions are confirmed
     pool_path = os.path.join(os.path.dirname(
@@ -225,7 +225,6 @@ def check_user_balance(username):
 
     if pending_balance > 0:
         print("Pending balance for " + username + ": " + str(pending_balance) + " GoodCoins")
-        print()
 
     return balance
     
