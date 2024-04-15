@@ -39,29 +39,26 @@ class HelperFunctions:
         connection.close()
 
     def create_ledger_database():
-        if os.path.exists(ledger_path) and os.path.exists(pool_path):
-            return
+        if not os.path.exists(ledger_path):
+            with open(ledger_path, 'wb') as ledger_file:
+                pass
 
-        with open(ledger_path, 'wb') as ledger_file:
-            pass
-
-        with open(pool_path, 'wb') as pool_file:
-            pass
-
-        return
+        if not os.path.exists(pool_path):
+            with open(pool_path, 'wb') as pool_file:
+                pass
 
     def register_user(username, password):
         if len(username) < 3 or not re.match("^[a-zA-Z0-9_]*$", username):
             os.system('cls' if os.name == 'nt' else 'clear')
-            print("**Invalid username, please try again.**")
+            # print("**Invalid username, please try again.**")
             print()
-            return False
+            return "Invalid username, please try again."
 
         if len(password) < 5 or not re.match("^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]*$", password):
             os.system('cls' if os.name == 'nt' else 'clear')
-            print("**Invalid password, please try again.**")
-            print()
-            return False
+            # print("**Invalid password, please try again.**")
+            # print()
+            return "Invalid password, please try again."
 
         connection = sqlite3.connect(database_path)
         cursor = connection.cursor()
@@ -71,9 +68,11 @@ class HelperFunctions:
         user = cursor.fetchone()
         if user:
             os.system('cls' if os.name == 'nt' else 'clear')
-            print("**Username already taken, please try again.**")
-            print()
-            return False
+            # print("**Username already taken, please try again.**")
+            # print()
+            return "Username already taken, please try again."
+        
+        connection.close()
 
         password = hashlib.sha256(password.encode('utf-8')).hexdigest()
 
@@ -96,6 +95,9 @@ class HelperFunctions:
 
         with open(pool_path, 'wb') as pool_file:
             pickle.dump(pool, pool_file)
+            
+        connection = sqlite3.connect(database_path)
+        cursor = connection.cursor()
 
         cursor.execute('INSERT INTO registered_users VALUES (?, ?, ?, ?)',
                        (username, password, private_key, public_key))
@@ -103,11 +105,11 @@ class HelperFunctions:
         connection.close()
 
         os.system('cls' if os.name == 'nt' else 'clear')
-        print("User " + username + " registered successfully!")
-        print("You have received 50 GoodCoins for signing up!")
-        print()
+        # print("User " + username + " registered successfully!")
+        # print("You have received 50 GoodCoins for signing up!")
+        # print()
 
-        return True
+        return "User " + username + " registered successfully! You have received 50 GoodCoins for signing up!"
 
     def login_user(username, password):
         connection = sqlite3.connect(database_path)
@@ -255,14 +257,22 @@ class HelperFunctions:
             try:
                 while True:
                     block = pickle.load(ledger_file)
+                    i = 1
                     for txBlock in block:
-                        for tx in txBlock.data:
-                            print("Transaction type: " + str(tx.type))
-                            print("Inputs: " + str(tx.inputs))
-                            print("Outputs: " + str(tx.outputs))
-                            print("Required signatures: " + str(tx.reqd))
-                            print("Signatures: " + str(tx.sigs))
-                            print()
+                        print("Block " + str(i))
+                        print("Date and time: " + str(txBlock.dateOfCreation))
+                        print("Mined by: " + str(txBlock.minedBy))
+                        print("Block hash: " + str(txBlock.blockHash))
+                        print("Previous block hash: " + str(txBlock.previousHash))
+                        i += 1
+                        # ask for input v to view transactions, everything else to go to next block
+                        view = input("Enter v to view transactions in this block, or any other key to continue: ")
+                        if view == 'v':
+                            for tx in txBlock.data:
+                                print("From: " + str(tx.inputs[0][0]) + " | To: " + str(tx.outputs[0][0]))
+                                print("Inputs: " + str(tx.inputs) + " | Outputs: " + str(tx.outputs))
+                                print("Fee: " + str(tx.fee))
+                                print()
             except EOFError:
                 pass
         

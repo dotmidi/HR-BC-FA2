@@ -199,7 +199,7 @@ def logged_in_menu():
                 return
 
             # check if the user has enough balance
-            if check_user_balance(current_user) < tx_input + fee:
+            if check_user_balance(current_user) < tx_input:
                 print("Not enough balance to send the transaction.")
                 print()
                 input("Press Enter to return to the main menu...")
