@@ -5,9 +5,9 @@ from cryptography.hazmat.primitives.asymmetric import rsa
 from cryptography.hazmat.primitives.asymmetric import padding
 from cryptography.hazmat.primitives import serialization
 import time
+import datetime
 import sys
 
-timing_variable = 20
 REWARD_VALUE = 50.0
 NORMAL = 0
 REWARD = 1
@@ -23,7 +23,7 @@ class CBlock:
         self.blockHash = None
         self.previousBlock = previousBlock
         self.nonce = 0
-        self.dateOfCreation = None
+        self.timeOfCreation = None
         self.minedBy = None
         self.flags = 0
         if previousBlock != None:
@@ -33,6 +33,7 @@ class CBlock:
         digest = hashes.Hash(hashes.SHA256(), backend=default_backend())
         digest.update(bytes(str(self.data), 'utf8'))
         digest.update(bytes(str(self.previousHash), 'utf8'))
+        digest.update(bytes(str(self.nonce), 'utf8'))
         return digest.finalize()
 
     def is_valid(self):
@@ -70,21 +71,36 @@ class TxBlock (CBlock):
 
         found = False
         nonce = 0
+        starttime = time.time()
+        timing_variable = 1
         while not found:
             h = digest.copy()
             h.update(bytes(str(nonce), 'utf-8'))
-            hash = h.finalize()
-            if hash[:leading_zero] == bytes('0'*leading_zero, 'utf-8'):
-                if int(hash[leading_zero]) < timing_variable:
+            hash_value = h.finalize()
+
+            # If time elapsed and difficulty_timer is less than the desired value, increase difficulty
+            if (time.time() - starttime > 10 and timing_variable < 50000):
+                # print("Difficulty increased")
+                timing_variable *= 2  # Adjust the difficulty based on your criteria
+
+            # Check if hash meets difficulty criteria
+            if hash_value[:leading_zero] == bytes('0'*leading_zero, 'utf-8'):
+                if int(hash_value[leading_zero]) < timing_variable:
                     found = True
                     self.nonce = nonce
-            nonce += 1
-            del h
-            
+                    break  # Exit loop if the nonce is found
+            # Print the nonce being tried
             sys.stdout.write("\rNonce: " + str(nonce))
+            sys.stdout.write("\tElapsed time: {:.2f}".format(
+                time.time() - starttime))
             sys.stdout.flush()
+            nonce += 1
+
+        # Record mined time and compute block hash
         self.blockHash = self.computeHash()
-        print("Mining complete")
+        self.timeOfCreation = datetime.datetime.now().strftime("%d-%m-%Y %H:%M:%S")
+        print()
+
 
 class Tx:
     inputs = None
@@ -106,7 +122,7 @@ class Tx:
 
     def add_output(self, to_addr, amount):
         self.outputs.append((to_addr, amount))
-        
+
     def add_fee(self, fee):
         self.fee.append(fee)
 

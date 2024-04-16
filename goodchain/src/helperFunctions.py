@@ -22,6 +22,7 @@ ledger_path = os.path.join(os.path.dirname(
 pool_path = os.path.join(os.path.dirname(
     os.path.dirname(__file__)), 'data', 'pool.dat')
 
+
 class HelperFunctions:
     def __init__(self):
         pass
@@ -71,7 +72,7 @@ class HelperFunctions:
             # print("**Username already taken, please try again.**")
             # print()
             return "Username already taken, please try again."
-        
+
         connection.close()
 
         password = hashlib.sha256(password.encode('utf-8')).hexdigest()
@@ -95,7 +96,7 @@ class HelperFunctions:
 
         with open(pool_path, 'wb') as pool_file:
             pickle.dump(pool, pool_file)
-            
+
         connection = sqlite3.connect(database_path)
         cursor = connection.cursor()
 
@@ -200,9 +201,8 @@ class HelperFunctions:
             except EOFError:
                 pass
 
-
         print("Current balance for " + username +
-            ": " + str(balance) + " GoodCoins")
+              ": " + str(balance) + " GoodCoins")
 
         pool_path = os.path.join(os.path.dirname(
             os.path.dirname(__file__)), 'data', 'pool.dat')
@@ -226,7 +226,7 @@ class HelperFunctions:
         connection.close()
         if pending_balance > 0 and pending_balance != balance:
             print("Pending balance for " + username +
-                ": " + str(pending_balance) + " GoodCoins")
+                  ": " + str(pending_balance) + " GoodCoins")
 
     def check_user_exists(username):
         connection = sqlite3.connect(database_path)
@@ -239,7 +239,6 @@ class HelperFunctions:
             return True
         else:
             return False
-
 
     def get_user_private_key(username):
         connection = sqlite3.connect(database_path)
@@ -260,19 +259,72 @@ class HelperFunctions:
                     i = 1
                     for txBlock in block:
                         print("Block " + str(i))
-                        print("Date and time: " + str(txBlock.dateOfCreation))
+                        print("Date and time: " + str(txBlock.timeOfCreation))
                         print("Mined by: " + str(txBlock.minedBy))
                         print("Block hash: " + str(txBlock.blockHash))
-                        print("Previous block hash: " + str(txBlock.previousHash))
+                        print("Previous block hash: " +
+                              str(txBlock.previousHash))
+                        # if the block has less than 3 flags, print that it's not validated and needs x/3 flags
+                        if txBlock.flags < 3:
+                            print("Block not validated, needs " +
+                                  str(3 - txBlock.flags) + "/3 flags")
                         i += 1
                         # ask for input v to view transactions, everything else to go to next block
-                        view = input("Enter v to view transactions in this block, or any other key to continue: ")
+                        view = input(
+                            "Enter v to view transactions in this block, or any other key to continue: ")
                         if view == 'v':
                             for tx in txBlock.data:
-                                print("From: " + str(tx.inputs[0][0]) + " | To: " + str(tx.outputs[0][0]))
-                                print("Inputs: " + str(tx.inputs) + " | Outputs: " + str(tx.outputs))
+                                print(
+                                    "From: " + str(tx.inputs[0][0]) + " | To: " + str(tx.outputs[0][0]))
+                                print("Inputs: " + str(tx.inputs) +
+                                      " | Outputs: " + str(tx.outputs))
                                 print("Fee: " + str(tx.fee))
                                 print()
             except EOFError:
                 pass
-        
+
+    # make a function similar to explore_ledger but if txBlock.flags < 3, validate the block and add a flag
+    def user_explore_ledger():
+        ledger_path = os.path.join(os.path.dirname(
+            os.path.dirname(__file__)), 'data', 'ledger.dat')
+        with open(ledger_path, 'rb') as ledger_file:
+            try:
+                while True:
+                    block = pickle.load(ledger_file)
+                    i = 1
+                    for txBlock in block:
+                        print("Block " + str(i))
+                        print("Date and time: " + str(txBlock.timeOfCreation))
+                        print("Mined by: " + str(txBlock.minedBy))
+                        print("Block hash: " + str(txBlock.blockHash))
+                        print("Previous block hash: " +
+                              str(txBlock.previousHash))
+                        # if the block has less than 3 flags, print that it's not validated and needs x/3 flags
+                        if txBlock.flags < 3:
+                            print("Block not validated, needs " +
+                                  str(3 - txBlock.flags) + "/3 flags")
+                            validate = input(
+                                "Enter v to validate this block, or any other key to continue: ")
+                            if validate == 'v':
+                                if txBlock.is_valid():
+                                    txBlock.flags += 1
+                                    print("Block validated!")
+                                    print("Block now has " +
+                                          str(txBlock.flags) + "/3 flags")
+                                else:
+                                    print("Block not validated")
+                        i += 1
+                        # ask for input v to view transactions, everything else to go to next block
+                        view = input(
+                            "Enter v to view transactions in this block, or any other key to continue: ")
+                        if view == 'v':
+                            for tx in txBlock.data:
+                                print(
+                                    "From: " + str(tx.inputs[0][0]) + " | To: " + str(tx.outputs[0][0]))
+                                print("Inputs: " + str(tx.inputs) +
+                                      " | Outputs: " + str(tx.outputs))
+                                print("Fee: " + str(tx.fee))
+                                print()
+            except EOFError:
+                pass
+    
