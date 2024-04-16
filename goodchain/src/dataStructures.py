@@ -135,7 +135,6 @@ class Tx:
         self.sigs.append(newsig)
 
     def is_valid(self):
-
         if self.type == REWARD:
             if len(self.inputs) != 0 and len(self.outputs) != 1:
                 return False
@@ -179,6 +178,21 @@ class Tx:
         data.append(self.outputs)
         data.append(self.reqd)
         return data
+
+    def __repr__(self):
+        repr_str = "Inputs:\n"
+        for addr, amt in self.inputs:
+            repr_str += str(amt) + " from " + str(addr) + "\n"
+        repr_str += "Outputs:\n"
+        for addr, amt in self.outputs:
+            repr_str += str(amt) + " to " + str(addr) + "\n"
+        repr_str += "Extra Required Signatures:\n"
+        for r in self.reqd:
+            repr_str += str(r) + "\n"
+        repr_str += "Signatures:\n"
+        for s in self.sigs:
+            repr_str += str(s) + "\n"
+        return repr_str
 
 
 class Signature:

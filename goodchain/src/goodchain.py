@@ -35,7 +35,8 @@ class UserInterface:
             '1': UserInterface.login,
             '2': UserInterface.public_explore,
             '3': UserInterface.signup,
-            '4': lambda: print("Goodbye!") or exit()
+            '4': lambda: print("Goodbye!") or exit(),
+            '5': UserInterface.validate_block
         }
 
         def default():
@@ -115,8 +116,6 @@ class UserInterface:
         print()
         username = input("Enter your username: ")
         password = input("Enter your password: ")
-        # HelperFunctions.register_user(username, password)
-        # print("You have successfully signed up!")
         print(HelperFunctions.register_user(username, password))
         print()
         input("Press Enter to return to the main menu.")
@@ -299,14 +298,6 @@ class UserInterface:
             input("Press enter to return to the main menu.")
             UserInterface.logged_in_menu()
 
-        with open(ledger_path, 'rb') as ledger_file:
-            try:
-                ledger = pickle.load(ledger_file)
-            except EOFError:
-                ledger = []
-                
-        ledger_file.close()
-
         print("Transactions in the pool: ")
         print()
         i = 1
@@ -338,11 +329,18 @@ class UserInterface:
         if mine_choice != 'y':
             UserInterface.logged_in_menu()
 
-        if len(ledger) == 0:
-            new_block = TxBlock(None)
-        else:
-            new_block = TxBlock(ledger[-1])
+        # with open(ledger_path, 'rb') as ledger_file:
+        #     try:
+        #         ledger = pickle.load(ledger_file)
+        #     except EOFError:
+        #         ledger = []
 
+        # if len(ledger) == 0:
+        #     new_block = TxBlock(None)
+        # else:
+        #     new_block = TxBlock(ledger[-1])
+
+        new_block = TxBlock(None)
         j = 0
         for i, tx in enumerate(pool):
             if i < 10:
@@ -358,14 +356,13 @@ class UserInterface:
         #     print()
         #     input("Press enter to return to the main menu.")
         #     UserInterface.logged_in_menu()
-
+        new_block.minedBy = username
         if new_block.is_valid():
             print("Block is valid. ")
             print(new_block.blockHash)
             print(new_block.previousHash)
             print(new_block.nonce)
             print(new_block.timeOfCreation)
-            new_block.minedBy = username
         else:
             print("Block is not valid.")
             print()
@@ -400,5 +397,18 @@ class UserInterface:
         username = None
         UserInterface.public_menu()
 
+    def validate_block():
+        # load ledger
+        fh = open(ledger_path, 'rb')
+        ledger = pickle.load(fh)
+        fh.close()
+
+        if ledger.is_valid():
+            print("Block is valid.")
+        else:
+            print("Block is not valid.")
+
+        input("Press enter to return to the main menu.")
+        UserInterface.logged_in_menu()
 
 UserInterface.public_menu()

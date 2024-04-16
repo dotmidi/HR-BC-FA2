@@ -285,8 +285,6 @@ class HelperFunctions:
 
     # make a function similar to explore_ledger but if txBlock.flags < 3, validate the block and add a flag
     def user_explore_ledger():
-        ledger_path = os.path.join(os.path.dirname(
-            os.path.dirname(__file__)), 'data', 'ledger.dat')
         with open(ledger_path, 'rb') as ledger_file:
             try:
                 while True:
