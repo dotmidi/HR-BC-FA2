@@ -56,22 +56,24 @@ class UserInterface:
         HelperFunctions.print_blockchain_info()
         print("1. Transfer coins")
         print("2. Explore the blockchain")
-        print("3. Check the Pool")
-        print("4. Edit a Transaction")
-        print("5. Cancel a Transaction")
-        print("6. Mine a block")
-        print("7. Log out")
+        print("3. View Transaction History")
+        print("4. Check the Pool")
+        print("5. Edit a Transaction")
+        print("6. Cancel a Transaction")
+        print("7. Mine a block")
+        print("8. Log out")
         print()
         choice = input("Enter your choice: ")
 
         switch = {
             '1': UserInterface.transfer_coins,
             '2': UserInterface.user_explore,
-            '3': UserInterface.check_pool,
-            '4': UserInterface.edit_transaction,
-            '5': UserInterface.cancel_transaction,
-            '6': UserInterface.mine_block,
-            '7': UserInterface.logout
+            '3': UserInterface.view_transaction_history,
+            '4': UserInterface.check_pool,
+            '5': UserInterface.edit_transaction,
+            '6': UserInterface.cancel_transaction,
+            '7': UserInterface.mine_block,
+            '8': UserInterface.logout
         }
 
         def default():
@@ -217,6 +219,48 @@ class UserInterface:
         input("Press enter to return to the main menu.")
         UserInterface.logged_in_menu()
 
+    def view_transaction_history():
+        os.system('cls' if os.name == 'nt' else 'clear')
+        with open(ledger_path, 'rb') as ledger_file:
+            try:
+                ledger = pickle.load(ledger_file)
+            except EOFError:
+                print("The ledger is empty.")
+                print()
+                input("Press enter to return to the main menu.")
+                UserInterface.logged_in_menu()
+
+        user_transactions = []
+        for block in ledger:
+            for tx in block.data:
+                if tx.inputs[0][0] == username or tx.outputs[0][0] == username:
+                    user_transactions.append(tx)
+
+        if len(user_transactions) == 0:
+            print("You have no transactions.")
+            print()
+            input("Press enter to return to the main menu.")
+            UserInterface.logged_in_menu()
+
+        i = 1
+        for tx in user_transactions:
+            print("Transaction " + str(i))
+            print("Inputs: ", end="")
+            for addr, amount in tx.inputs:
+                print("From: " + addr + " Amount: " + str(amount), end=" ")
+            print()
+            print("Outputs: ", end="")
+            for addr, amount in tx.outputs:
+                print("To: " + addr + " Amount: " + str(amount), end=" ")
+            print()
+            for fee in tx.fee:
+                print("Fee: " + str(fee))
+            print()
+            i += 1
+
+        input("Press enter to return to the main menu.")
+        UserInterface.logged_in_menu()
+    
     def edit_transaction():
         os.system('cls' if os.name == 'nt' else 'clear')
         with open(pool_path, 'rb') as pool_file:
