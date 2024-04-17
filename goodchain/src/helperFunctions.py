@@ -12,6 +12,7 @@ from cryptography.hazmat.primitives import serialization
 import hashlib
 from dataStructures import *
 import pickle
+import random
 
 database_path = os.path.join(os.path.dirname(
     os.path.dirname(__file__)), 'data', 'goodchain.db')
@@ -21,6 +22,9 @@ ledger_path = os.path.join(os.path.dirname(
 
 pool_path = os.path.join(os.path.dirname(
     os.path.dirname(__file__)), 'data', 'pool.dat')
+
+hash_path = os.path.join(os.path.dirname(
+    os.path.dirname(__file__)), 'data', 'hash.dat')
 
 
 class HelperFunctions:
@@ -39,13 +43,17 @@ class HelperFunctions:
         cursor.close()
         connection.close()
 
-    def create_ledger_database():
+    def create_dat_files():
         if not os.path.exists(ledger_path):
             with open(ledger_path, 'wb') as ledger_file:
                 pass
 
         if not os.path.exists(pool_path):
             with open(pool_path, 'wb') as pool_file:
+                pass
+
+        if not os.path.exists(hash_path):
+            with open(hash_path, 'wb') as hash_file:
                 pass
 
     def register_user(username, password):
@@ -88,6 +96,8 @@ class HelperFunctions:
         tx = Tx(type=REWARD)
         tx.add_input("SIGN UP REWARD", 50)
         tx.add_output(username, 50)
+        # make the tx id a random number between 0 and 1000
+        tx.id = random.random.randint(0, 1000)
 
         if not tx.is_valid():
             raise Exception("Invalid transaction")
@@ -255,10 +265,9 @@ class HelperFunctions:
             try:
                 while True:
                     block = pickle.load(ledger_file)
-                    i = 1
                     for txBlock in block:
                         os.system('cls' if os.name == 'nt' else 'clear')
-                        print("Block " + str(i))
+                        print("Block " + str(txBlock.id))
                         print("Date and time: " + str(txBlock.timeOfCreation))
                         print("Mined by: " + str(txBlock.minedBy))
                         print("Block hash: " + str(txBlock.blockHash))
@@ -267,15 +276,16 @@ class HelperFunctions:
                         for tx in txBlock.data:
                             print()
                             print(
-                                "Transaction " + str(txBlock.data.index(tx) + 1) + " in block " + str(i))
+                                "Transaction " + str(txBlock.data.index(tx) + 1) + " in block " + str(txBlock.id))
+                            print("Transaction id: " + str(tx.id))
                             print(
                                 "From: " + str(tx.inputs[0][0]) + " | To: " + str(tx.outputs[0][0]))
                             print("Inputs: " + str(tx.inputs) +
                                   " | Outputs: " + str(tx.outputs))
                             print("Fee: " + str(tx.fee))
-                        i += 1
                         input("Press Enter to continue to next block")
             except EOFError:
+                print("No blocks in the ledger")
                 pass
 
     def user_explore_ledger(username):
@@ -283,10 +293,9 @@ class HelperFunctions:
             try:
                 while True:
                     block = pickle.load(ledger_file)
-                    i = 1
                     for txBlock in block:
                         os.system('cls' if os.name == 'nt' else 'clear')
-                        print("Block " + str(i))
+                        print("Block " + str(txBlock.id))
                         print("Date and time: " + str(txBlock.timeOfCreation))
                         print("Mined by: " + str(txBlock.minedBy))
                         print("Block hash: " + str(txBlock.blockHash))
@@ -323,19 +332,77 @@ class HelperFunctions:
                             print("Block already validated by you")
                         else:
                             print("Block has " + str(txBlock.flags) + "/3 flags")
+                            # look at the txBlock.pendingReward, it has the username and the mining reward. Make it into a tx and add it to the pool
+                            if txBlock.pendingReward != []:
+                                tx = Tx(type=REWARD)
+                                tx.add_input("MINING REWARD", 50)
+                                tx.add_output(txBlock.pendingReward[0], 50)
+                                tx.id = random.randint(0, 1000)
+                                if not tx.is_valid():
+                                    raise Exception("Invalid transaction")
+                                with open(pool_path, 'rb') as pool_file:
+                                    try:
+                                        pool = pickle.load(pool_file)
+                                    except EOFError:
+                                        pool = []
+                                pool.append(tx)
+                                with open(pool_path, 'wb') as pool_file:
+                                    pickle.dump(pool, pool_file)
+                                txBlock.pendingReward = []
+                                ledger = []
+                                with open(ledger_path, 'rb') as ledger_file:
+                                    try:
+                                        while True:
+                                            ledger.append(
+                                                pickle.load(ledger_file))
+                                    except EOFError:
+                                        pass
+                                ledger.pop()
+                                ledger.append(block)
+                                with open(ledger_path, 'wb') as ledger_file:
+                                    for block in ledger:
+                                        pickle.dump(block, ledger_file)
                         for tx in txBlock.data:
                             print()
                             print(
-                                "Transaction " + str(txBlock.data.index(tx) + 1) + " in block " + str(i))
+                                "Transaction " + str(txBlock.data.index(tx) + 1) + " in block " + str(txBlock.id))
+                            print("Transaction id: " + str(tx.id))
                             print(
                                 "From: " + str(tx.inputs[0][0]) + " | To: " + str(tx.outputs[0][0]))
                             print("Inputs: " + str(tx.inputs) +
                                   " | Outputs: " + str(tx.outputs))
                             print("Fee: " + str(tx.fee))
-                        i += 1
                         input("Press Enter to continue to next block")
             except EOFError:
                 pass
+
+    def check_data_validity(startup):
+        data_path = os.path.join(os.path.dirname(
+            os.path.dirname(__file__)), 'data')
+        data_hash = hashlib.sha256()
+        for file in ['goodchain.db', 'ledger.dat', 'pool.dat']:
+            with open(os.path.join(data_path, file), 'rb') as f:
+                data_hash.update(f.read())
+
+        data_hash_digest = data_hash.digest()
+
+        if os.path.getsize(os.path.join(data_path, 'hash.dat')) == 0:
+            with open(os.path.join(data_path, 'hash.dat'), 'wb') as hash_file:
+                hash_file.write(data_hash_digest)
+                return
+
+        hash_path = os.path.join(data_path, 'hash.dat')
+        if startup:
+            with open(hash_path, 'rb') as hash_file:
+                stored_hash = hash_file.read()
+            if data_hash_digest == stored_hash:
+                print("Data is valid")
+            else:
+                print("Data has been tampered with")
+                exit()
+
+        with open(hash_path, 'wb') as hash_file:
+            hash_file.write(data_hash_digest)
 
     def print_blockchain_info():
         print()
@@ -345,7 +412,7 @@ class HelperFunctions:
             except EOFError:
                 block = []
         print("Total blocks in the ledger: " + str(len(block)))
-        
+
         total_tx = 0
         if block == []:
             total_tx = 0
@@ -353,14 +420,14 @@ class HelperFunctions:
             for txBlock in block:
                 total_tx += len(txBlock.data)
         print("Total transactions in the ledger: " + str(total_tx))
-        
+
         with open(pool_path, 'rb') as pool_file:
             try:
                 pool = pickle.load(pool_file)
             except EOFError:
                 pool = []
         print("Total transactions in the pool: " + str(len(pool)))
-        
+
         total_balance = 0
         with open(ledger_path, 'rb') as ledger_file:
             try:
@@ -372,6 +439,24 @@ class HelperFunctions:
                                 total_balance += amount
             except EOFError:
                 pass
-            
+
         print("Total GoodCoins in circulation: " + str(total_balance))
         print()
+
+    def print_user_keys(username):
+        connection = sqlite3.connect(database_path)
+        cursor = connection.cursor()
+
+        cursor.execute(
+            'SELECT * FROM registered_users WHERE username = ?', (username,))
+        user = cursor.fetchone()
+        if user:
+            print("Public key: " + user[3].decode('utf-8'))
+            print("Private key: " + user[2].decode('utf-8'))
+        else:
+            os.system('cls' if os.name == 'nt' else 'clear')
+            print("**Invalid username, please try again.**")
+            print()
+
+        cursor.close()
+        connection.close()

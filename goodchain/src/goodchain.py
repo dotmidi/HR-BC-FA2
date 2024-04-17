@@ -4,9 +4,11 @@ import os
 import time
 import datetime
 import pickle
+import random
 
 HelperFunctions.create_user_database()
-HelperFunctions.create_ledger_database()
+HelperFunctions.create_dat_files()
+HelperFunctions.check_data_validity(True)
 
 os.system('cls' if os.name == 'nt' else 'clear')
 
@@ -22,6 +24,7 @@ class UserInterface:
         os.system('cls' if os.name == 'nt' else 'clear')
         print("Public Menu")
         print("Welcome to Goodchain!")
+        HelperFunctions.check_data_validity(False)
         HelperFunctions.print_blockchain_info()
         print("1. Login")
         print("2. Explore the blockchain")
@@ -61,7 +64,8 @@ class UserInterface:
         print("5. Edit a Transaction")
         print("6. Cancel a Transaction")
         print("7. Mine a block")
-        print("8. Log out")
+        print("8. View User Keys")
+        print("9. Log out")
         print()
         choice = input("Enter your choice: ")
 
@@ -73,7 +77,8 @@ class UserInterface:
             '5': UserInterface.edit_transaction,
             '6': UserInterface.cancel_transaction,
             '7': UserInterface.mine_block,
-            '8': UserInterface.logout
+            '8': UserInterface.view_user_keys,
+            '9': UserInterface.logout
         }
 
         def default():
@@ -134,7 +139,8 @@ class UserInterface:
         try:
             recipient = input("Enter the recipient's username: ")
             tx_input = float(input("Enter the input amount: "))
-            tx_output = float(input("Enter the output amount for the recipient: "))
+            tx_output = float(
+                input("Enter the output amount for the recipient: "))
             fee = float(input("Enter the transaction fee: "))
         except ValueError:
             print("Invalid input. Please enter a valid number.")
@@ -169,6 +175,7 @@ class UserInterface:
         private_key = HelperFunctions.get_user_private_key(username)
 
         new_tx = Tx()
+        new_tx.id = random.randint(0, 1000)
         new_tx.add_input(username, tx_input)
         new_tx.add_output(recipient, tx_output)
         new_tx.add_fee(fee)
@@ -207,16 +214,22 @@ class UserInterface:
             input("Press enter to return to the main menu.")
             UserInterface.logged_in_menu()
 
-        i = 1
         for tx in pool:
+            print("Transaction " + str(tx.id))
             print("From: " + str(tx.inputs[0][0]) +
                   " | To: " + str(tx.outputs[0][0]))
             print("Inputs: " + str(tx.inputs) +
                   " | Outputs: " + str(tx.outputs))
             print("Fee: " + str(tx.fee))
             print()
+            if not tx.is_valid():
+                print("Transaction + " + tx.id +
+                      " is not valid. Removing from the pool.")
+                pool.remove(tx)
+            else:
+                print("Transaction " + tx.id + " is valid.")
+            print()
 
-        input("Press enter to return to the main menu.")
         UserInterface.logged_in_menu()
 
     def view_transaction_history():
@@ -242,9 +255,8 @@ class UserInterface:
             input("Press enter to return to the main menu.")
             UserInterface.logged_in_menu()
 
-        i = 1
         for tx in user_transactions:
-            print("Transaction " + str(i))
+            print("Transaction " + str(tx.id))
             print("Inputs: ", end="")
             for addr, amount in tx.inputs:
                 print("From: " + addr + " Amount: " + str(amount), end=" ")
@@ -256,11 +268,10 @@ class UserInterface:
             for fee in tx.fee:
                 print("Fee: " + str(fee))
             print()
-            i += 1
 
         input("Press enter to return to the main menu.")
         UserInterface.logged_in_menu()
-    
+
     def edit_transaction():
         os.system('cls' if os.name == 'nt' else 'clear')
         with open(pool_path, 'rb') as pool_file:
@@ -283,9 +294,8 @@ class UserInterface:
             input("Press enter to return to the main menu.")
             UserInterface.logged_in_menu()
 
-        i = 1
         for tx in user_transactions:
-            print("Transaction " + str(i))
+            print("Transaction " + str(tx.id))
             print("Inputs: ")
             for addr, amount in tx.inputs:
                 print("From: " + addr + " Amount: " + str(amount))
@@ -299,7 +309,6 @@ class UserInterface:
             for fee in tx.fee:
                 print(fee)
             print()
-            i += 1
 
         choice = input(
             "Enter the number of the transaction you would like to edit (enter 'r' to return to the main menu): ")
@@ -320,7 +329,7 @@ class UserInterface:
             UserInterface.edit_transaction()
 
         tx = user_transactions[choice - 1]
-        
+
         # ask for recipient, input, output and fee. the default values should be the current values of the transaction
         try:
             print("Previous recipient: " + tx.outputs[0][0])
@@ -328,61 +337,62 @@ class UserInterface:
             print("Previous input: " + str(tx.inputs[0][1]))
             tx_input = float(input("Enter the input amount: "))
             print("Previous output: " + str(tx.outputs[0][1]))
-            tx_output = float(input("Enter the output amount for the recipient: "))
+            tx_output = float(
+                input("Enter the output amount for the recipient: "))
             print("Previous fee: " + str(tx.fee[0]))
             fee = float(input("Enter the transaction fee: "))
-            
+
         except ValueError:
             print("Invalid input. Please enter a valid number.")
             print()
             input("Press enter to return to the main menu.")
             UserInterface.logged_in_menu()
-            
+
         if tx_input < tx_output + fee:
             print("Invalid transaction: input must be greater than output and fee.")
             print()
             input("Press enter to return to the main menu.")
             UserInterface.logged_in_menu()
-            
+
         if not HelperFunctions.check_user_exists(recipient):
             print("Recipient does not exist.")
             print()
             input("Press enter to return to the main menu.")
             UserInterface.logged_in_menu()
-            
+
         if recipient == username:
             print("You cannot send coins to yourself.")
             print()
             input("Press enter to return to the main menu.")
             UserInterface.logged_in_menu()
-            
+
         if HelperFunctions.check_user_balance(username) < tx_input:
             print("Insufficient balance.")
             print()
             input("Press enter to return to the main menu.")
             UserInterface.logged_in_menu()
-            
+
         private_key = HelperFunctions.get_user_private_key(username)
-        
+
         new_tx = Tx()
         new_tx.add_input(username, tx_input)
         new_tx.add_output(recipient, tx_output)
         new_tx.add_fee(fee)
         new_tx.sign(private_key)
-        
+
         pool.remove(tx)
-        
+
         pool.append(new_tx)
-        
+
         with open(pool_path, 'wb') as pool_file:
             pickle.dump(pool, pool_file)
-            
+
         print("Transaction edited.")
         print()
 
         input("Press enter to return to the main menu.")
         UserInterface.logged_in_menu()
-        
+
     def cancel_transaction():
         os.system('cls' if os.name == 'nt' else 'clear')
         with open(pool_path, 'rb') as pool_file:
@@ -405,9 +415,8 @@ class UserInterface:
             input("Press enter to return to the main menu.")
             UserInterface.logged_in_menu()
 
-        i = 1
         for tx in user_transactions:
-            print("Transaction " + str(i))
+            print("Transaction " + str(tx.id))
             print("Inputs: ")
             for addr, amount in tx.inputs:
                 print("From: " + addr + " Amount: " + str(amount))
@@ -421,7 +430,6 @@ class UserInterface:
             for fee in tx.fee:
                 print(fee)
             print()
-            i += 1
 
         choice = input(
             "Enter the number of the transaction you would like to cancel (enter 'r' to return to the main menu): ")
@@ -472,9 +480,8 @@ class UserInterface:
 
         print("Transactions in the pool: ")
         print()
-        i = 1
         for tx in pool:
-            print("Transaction " + str(i))
+            print("Transaction " + str(tx.id))
             print("Inputs: ")
             for addr, amount in tx.inputs:
                 print("From: " + addr + " Amount: " + str(amount))
@@ -488,7 +495,6 @@ class UserInterface:
             for fee in tx.fee:
                 print(fee)
             print()
-            i += 1
 
         if len(pool) < 5:
             print("There are not enough transactions in the pool to mine a block.")
@@ -496,6 +502,13 @@ class UserInterface:
             input("Press enter to return to the main menu.")
             UserInterface.logged_in_menu()
 
+        total_fee = 0
+        for tx in pool:
+            if len(tx.fee) == 0:
+                continue
+            total_fee += tx.fee[0]
+
+        print("Total mining reward: " + str(total_fee))
         mine_choice = input("Would you like to mine a block? (y/n): ")
 
         if mine_choice != 'y':
@@ -511,11 +524,22 @@ class UserInterface:
             new_block = TxBlock(None)
         else:
             previous_block = ledger[-1]
-            if previous_block.validations < 3:
-                print("The previous block does not have enough validations to mine the next block.")
+            if previous_block.flags < 3:
+                print(
+                    "The previous block does not have enough validations to mine the next block.")
                 print()
                 input("Press enter to return to the main menu.")
                 UserInterface.logged_in_menu()
+
+            time_difference = datetime.datetime.strptime(datetime.datetime.now().strftime(
+                "%d-%m-%Y %H:%M:%S"), "%d-%m-%Y %H:%M:%S") - datetime.datetime.strptime(previous_block.timeOfCreation, "%d-%m-%Y %H:%M:%S")
+            if time_difference.total_seconds() < 180:
+                print(
+                    "There must be at least 3 minutes between the creation of the last block and the new block.")
+                print()
+                input("Press enter to return to the main menu.")
+                UserInterface.logged_in_menu()
+
             new_block = TxBlock(previous_block)
 
         ledger_file.close()
@@ -527,26 +551,22 @@ class UserInterface:
             else:
                 break
 
+        new_block.id = random.randint(0, 1000)
         new_block.mine(2)
 
-        # if not new_block.is_valid():
+        new_block.minedBy = username
+        # put the total fee and username in the block.pendingReward
+        new_block.pendingReward.append(total_fee)
+        new_block.pendingReward.append(username)
+        # if new_block.is_valid():
+        #     print("Block is valid. ")
+        # else:
         #     print("Block is not valid.")
         #     print()
         #     input("Press enter to return to the main menu.")
         #     UserInterface.logged_in_menu()
-        new_block.minedBy = username
-        if new_block.is_valid():
-            print("Block is valid. ")
-            # print(new_block.blockHash)
-            # print(new_block.previousHash)
-            # print(new_block.nonce)
-            # print(new_block.timeOfCreation)
-        else:
-            print("Block is not valid.")
-            print()
-            input("Press enter to return to the main menu.")
-            UserInterface.logged_in_menu()
 
+        print(new_block.pendingReward)
         ledger.append(new_block)
 
         fh = open(ledger_path, 'wb')
@@ -564,6 +584,13 @@ class UserInterface:
         input("Press enter to return to the main menu.")
         UserInterface.logged_in_menu()
 
+    def view_user_keys():
+        os.system('cls' if os.name == 'nt' else 'clear')
+        HelperFunctions.print_user_keys(username)
+        print()
+        input("Press Enter to return to the main menu.")
+        UserInterface.logged_in_menu()
+
     def logout():
         global is_logged_in
         global username
@@ -574,5 +601,6 @@ class UserInterface:
         is_logged_in = False
         username = None
         UserInterface.public_menu()
+
 
 UserInterface.public_menu()

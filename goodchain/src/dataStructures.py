@@ -9,6 +9,7 @@ import datetime
 import sys
 import os
 import sqlite3
+import random
 
 REWARD_VALUE = 50.0
 NORMAL = 0
@@ -32,6 +33,7 @@ class CBlock:
     previousBlock = None
 
     def __init__(self, data, previousBlock):
+        self.id = None
         self.data = data
         self.blockHash = None
         self.previousBlock = previousBlock
@@ -40,6 +42,7 @@ class CBlock:
         self.minedBy = None
         self.flags = 0
         self.validatedBy = []
+        self.pendingReward = []
         if previousBlock != None:
             self.previousHash = previousBlock.computeHash()
 
@@ -124,6 +127,7 @@ class Tx:
     reqd = None
 
     def __init__(self, type=NORMAL):
+        self.id = None
         self.type = type
         self.inputs = []
         self.outputs = []
