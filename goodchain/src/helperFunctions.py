@@ -193,11 +193,12 @@ class HelperFunctions:
                     block = pickle.load(ledger_file)
                     for txBlock in block:
                         for tx in txBlock.data:
-                            # if tx.type == REWARD and tx.outputs[0][0] == username:
-                            #     balance += tx.outputs[0][1]
                             for addr, amount in tx.outputs:
                                 if addr == username:
                                     balance += amount
+                            for addr, amount in tx.inputs:
+                                if addr == username:
+                                    balance -= amount
             except EOFError:
                 pass
 
@@ -250,79 +251,127 @@ class HelperFunctions:
         return user[2]
 
     def explore_ledger():
-        ledger_path = os.path.join(os.path.dirname(
-            os.path.dirname(__file__)), 'data', 'ledger.dat')
         with open(ledger_path, 'rb') as ledger_file:
             try:
                 while True:
                     block = pickle.load(ledger_file)
                     i = 1
                     for txBlock in block:
+                        os.system('cls' if os.name == 'nt' else 'clear')
                         print("Block " + str(i))
                         print("Date and time: " + str(txBlock.timeOfCreation))
                         print("Mined by: " + str(txBlock.minedBy))
                         print("Block hash: " + str(txBlock.blockHash))
                         print("Previous block hash: " +
                               str(txBlock.previousHash))
-                        # if the block has less than 3 flags, print that it's not validated and needs x/3 flags
-                        if txBlock.flags < 3:
-                            print("Block not validated, needs " +
-                                  str(3 - txBlock.flags) + "/3 flags")
+                        for tx in txBlock.data:
+                            print()
+                            print(
+                                "Transaction " + str(txBlock.data.index(tx) + 1) + " in block " + str(i))
+                            print(
+                                "From: " + str(tx.inputs[0][0]) + " | To: " + str(tx.outputs[0][0]))
+                            print("Inputs: " + str(tx.inputs) +
+                                  " | Outputs: " + str(tx.outputs))
+                            print("Fee: " + str(tx.fee))
                         i += 1
-                        # ask for input v to view transactions, everything else to go to next block
-                        view = input(
-                            "Enter v to view transactions in this block, or any other key to continue: ")
-                        if view == 'v':
-                            for tx in txBlock.data:
-                                print(
-                                    "From: " + str(tx.inputs[0][0]) + " | To: " + str(tx.outputs[0][0]))
-                                print("Inputs: " + str(tx.inputs) +
-                                      " | Outputs: " + str(tx.outputs))
-                                print("Fee: " + str(tx.fee))
-                                print()
+                        input("Press Enter to continue to next block")
             except EOFError:
                 pass
 
-    # make a function similar to explore_ledger but if txBlock.flags < 3, validate the block and add a flag
-    def user_explore_ledger():
+    def user_explore_ledger(username):
         with open(ledger_path, 'rb') as ledger_file:
             try:
                 while True:
                     block = pickle.load(ledger_file)
                     i = 1
                     for txBlock in block:
+                        os.system('cls' if os.name == 'nt' else 'clear')
                         print("Block " + str(i))
                         print("Date and time: " + str(txBlock.timeOfCreation))
                         print("Mined by: " + str(txBlock.minedBy))
                         print("Block hash: " + str(txBlock.blockHash))
                         print("Previous block hash: " +
                               str(txBlock.previousHash))
-                        # if the block has less than 3 flags, print that it's not validated and needs x/3 flags
-                        if txBlock.flags < 3:
+                        if txBlock.flags < 3 and txBlock.minedBy != username and username not in txBlock.validatedBy:
                             print("Block not validated, needs " +
                                   str(3 - txBlock.flags) + "/3 flags")
-                            validate = input(
-                                "Enter v to validate this block, or any other key to continue: ")
-                            if validate == 'v':
-                                if txBlock.is_valid():
-                                    txBlock.flags += 1
-                                    print("Block validated!")
-                                    print("Block now has " +
-                                          str(txBlock.flags) + "/3 flags")
-                                else:
-                                    print("Block not validated")
+                            print("Validating block...")
+                            if txBlock.is_valid():
+                                txBlock.flags += 1
+                                txBlock.validatedBy.append(username)
+                                print("Block validated!")
+                                print("Block now has " +
+                                      str(txBlock.flags) + "/3 flags")
+                                ledger = []
+                                with open(ledger_path, 'rb') as ledger_file:
+                                    try:
+                                        while True:
+                                            ledger.append(
+                                                pickle.load(ledger_file))
+                                    except EOFError:
+                                        pass
+                                ledger.pop()
+                                ledger.append(block)
+                                with open(ledger_path, 'wb') as ledger_file:
+                                    for block in ledger:
+                                        pickle.dump(block, ledger_file)
+                            else:
+                                print("Block not validated")
+                        elif txBlock.minedBy == username:
+                            print("Block mined by you, cannot validate own block")
+                        elif username in txBlock.validatedBy:
+                            print("Block already validated by you")
+                        else:
+                            print("Block has " + str(txBlock.flags) + "/3 flags")
+                        for tx in txBlock.data:
+                            print()
+                            print(
+                                "Transaction " + str(txBlock.data.index(tx) + 1) + " in block " + str(i))
+                            print(
+                                "From: " + str(tx.inputs[0][0]) + " | To: " + str(tx.outputs[0][0]))
+                            print("Inputs: " + str(tx.inputs) +
+                                  " | Outputs: " + str(tx.outputs))
+                            print("Fee: " + str(tx.fee))
                         i += 1
-                        # ask for input v to view transactions, everything else to go to next block
-                        view = input(
-                            "Enter v to view transactions in this block, or any other key to continue: ")
-                        if view == 'v':
-                            for tx in txBlock.data:
-                                print(
-                                    "From: " + str(tx.inputs[0][0]) + " | To: " + str(tx.outputs[0][0]))
-                                print("Inputs: " + str(tx.inputs) +
-                                      " | Outputs: " + str(tx.outputs))
-                                print("Fee: " + str(tx.fee))
-                                print()
+                        input("Press Enter to continue to next block")
             except EOFError:
                 pass
-    
+
+    def print_blockchain_info():
+        print()
+        with open(ledger_path, 'rb') as ledger_file:
+            try:
+                block = pickle.load(ledger_file)
+            except EOFError:
+                block = []
+        print("Total blocks in the ledger: " + str(len(block)))
+        
+        total_tx = 0
+        if block == []:
+            total_tx = 0
+        else:
+            for txBlock in block:
+                total_tx += len(txBlock.data)
+        print("Total transactions in the ledger: " + str(total_tx))
+        
+        with open(pool_path, 'rb') as pool_file:
+            try:
+                pool = pickle.load(pool_file)
+            except EOFError:
+                pool = []
+        print("Total transactions in the pool: " + str(len(pool)))
+        
+        total_balance = 0
+        with open(ledger_path, 'rb') as ledger_file:
+            try:
+                while True:
+                    block = pickle.load(ledger_file)
+                    for txBlock in block:
+                        for tx in txBlock.data:
+                            for addr, amount in tx.outputs:
+                                total_balance += amount
+            except EOFError:
+                pass
+            
+        print("Total GoodCoins in circulation: " + str(total_balance))
+        print()

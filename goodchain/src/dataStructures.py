@@ -7,11 +7,24 @@ from cryptography.hazmat.primitives import serialization
 import time
 import datetime
 import sys
+import os
+import sqlite3
 
 REWARD_VALUE = 50.0
 NORMAL = 0
 REWARD = 1
 
+class MiscFunctions:
+    def get_user_public_key(username):
+        database_path = os.path.join(os.path.dirname(
+            os.path.dirname(__file__)), 'data', 'goodchain.db')
+        connection = sqlite3.connect(database_path)
+        cursor = connection.cursor()
+
+        cursor.execute(
+            'SELECT * FROM registered_users WHERE username = ?', (username,))
+        user = cursor.fetchone()
+        return user[3]
 
 class CBlock:
     data = None
@@ -26,6 +39,7 @@ class CBlock:
         self.timeOfCreation = None
         self.minedBy = None
         self.flags = 0
+        self.validatedBy = []
         if previousBlock != None:
             self.previousHash = previousBlock.computeHash()
 
@@ -225,8 +239,8 @@ class Signature:
 
     def verify(message, signature, pbc_ser):
         message = bytes(str(message), 'utf-8')
-        print(pbc_ser)
-        public_key = serialization.load_pem_public_key(pbc_ser)
+        loaded_pbc = MiscFunctions.get_user_public_key(pbc_ser)
+        public_key = serialization.load_pem_public_key(loaded_pbc)
         try:
             public_key.verify(
                 signature,
