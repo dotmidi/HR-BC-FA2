@@ -57,6 +57,7 @@ class UserInterface:
         print("User currently logged in: " + username)
         HelperFunctions.print_user_balance(username)
         HelperFunctions.print_blockchain_info()
+        HelperFunctions.check_data_validity(False)
         print("1. Transfer coins")
         print("2. Explore the blockchain")
         print("3. View Transaction History")
@@ -113,6 +114,7 @@ class UserInterface:
     def public_explore():
         os.system('cls' if os.name == 'nt' else 'clear')
         HelperFunctions.explore_ledger()
+        HelperFunctions.validate_entire_ledger()
         print()
         input("Press Enter to return to the main menu.")
         UserInterface.public_menu()
@@ -124,6 +126,7 @@ class UserInterface:
         username = input("Enter your username: ")
         password = input("Enter your password: ")
         print(HelperFunctions.register_user(username, password))
+        HelperFunctions.validate_entire_ledger()
         print()
         input("Press Enter to return to the main menu.")
         UserInterface.public_menu()
@@ -135,7 +138,6 @@ class UserInterface:
         with open(pool_path, 'rb') as pool_file:
             pool = pickle.load(pool_file)
 
-        # ask for recipient, input, output and fee. Make these fields navigatable using arrow keys
         try:
             recipient = input("Enter the recipient's username: ")
             tx_input = float(input("Enter the input amount: "))
@@ -174,6 +176,9 @@ class UserInterface:
 
         private_key = HelperFunctions.get_user_private_key(username)
 
+        if tx_input - tx_output - fee > 0:
+            fee += round(tx_input - tx_output - fee, 1)
+
         new_tx = Tx()
         new_tx.id = random.randint(0, 1000)
         new_tx.add_input(username, tx_input)
@@ -186,6 +191,7 @@ class UserInterface:
         with open(pool_path, 'wb') as pool_file:
             pickle.dump(pool, pool_file)
 
+        HelperFunctions.validate_entire_ledger()
         print("Transaction added to the pool!")
         input("Press enter to return to the main menu.")
         UserInterface.logged_in_menu()
@@ -193,6 +199,7 @@ class UserInterface:
     def user_explore():
         os.system('cls' if os.name == 'nt' else 'clear')
         HelperFunctions.user_explore_ledger(username)
+        HelperFunctions.validate_entire_ledger()
         print()
         input("Press Enter to return to the main menu.")
         UserInterface.logged_in_menu()
@@ -227,9 +234,11 @@ class UserInterface:
                       " is not valid. Removing from the pool.")
                 pool.remove(tx)
             else:
-                print("Transaction " + tx.id + " is valid.")
+                print("Transaction " + str(tx.id) + " is valid.")
             print()
 
+        HelperFunctions.validate_entire_ledger()
+        input("Press enter to return to the main menu.")
         UserInterface.logged_in_menu()
 
     def view_transaction_history():
@@ -269,6 +278,7 @@ class UserInterface:
                 print("Fee: " + str(fee))
             print()
 
+        HelperFunctions.validate_entire_ledger()
         input("Press enter to return to the main menu.")
         UserInterface.logged_in_menu()
 
@@ -330,7 +340,6 @@ class UserInterface:
 
         tx = user_transactions[choice - 1]
 
-        # ask for recipient, input, output and fee. the default values should be the current values of the transaction
         try:
             print("Previous recipient: " + tx.outputs[0][0])
             recipient = input("Enter the recipient's username: ")
@@ -387,6 +396,7 @@ class UserInterface:
         with open(pool_path, 'wb') as pool_file:
             pickle.dump(pool, pool_file)
 
+        HelperFunctions.validate_entire_ledger()
         print("Transaction edited.")
         print()
 
@@ -430,9 +440,8 @@ class UserInterface:
             for fee in tx.fee:
                 print(fee)
             print()
-
         choice = input(
-            "Enter the number of the transaction you would like to cancel (enter 'r' to return to the main menu): ")
+            "Enter the ID of the transaction you would like to cancel (enter 'r' to return to the main menu): ")
 
         if choice == 'r':
             UserInterface.logged_in_menu()
@@ -444,16 +453,24 @@ class UserInterface:
             print()
             UserInterface.cancel_transaction()
 
-        if choice < 1 or choice > len(user_transactions):
+        transaction_to_cancel = None
+        for tx in user_transactions:
+            if str(tx.id) == str(choice):
+                transaction_to_cancel = tx
+            continue
+
+        if transaction_to_cancel is None:
             print("Invalid choice, please try again.")
             print()
+            input("Press enter to retry.")
             UserInterface.cancel_transaction()
 
-        pool.remove(user_transactions[choice - 1])
+        pool.remove(transaction_to_cancel)
 
         with open(pool_path, 'wb') as pool_file:
             pickle.dump(pool, pool_file)
 
+        HelperFunctions.validate_entire_ledger()
         print("Transaction cancelled.")
         print()
         input("Press enter to return to the main menu.")
@@ -476,42 +493,6 @@ class UserInterface:
             print("The pool is empty.")
             print()
             input("Press enter to return to the main menu.")
-            UserInterface.logged_in_menu()
-
-        print("Transactions in the pool: ")
-        print()
-        for tx in pool:
-            print("Transaction " + str(tx.id))
-            print("Inputs: ")
-            for addr, amount in tx.inputs:
-                print("From: " + addr + " Amount: " + str(amount))
-            print("Outputs: ")
-            for addr, amount in tx.outputs:
-                print("To: " + addr + " Amount: " + str(amount))
-            # print("Signatures: ")
-            # for s in tx.sigs:
-            #     print(s)
-            print("Fee:")
-            for fee in tx.fee:
-                print(fee)
-            print()
-
-        if len(pool) < 5:
-            print("There are not enough transactions in the pool to mine a block.")
-            print()
-            input("Press enter to return to the main menu.")
-            UserInterface.logged_in_menu()
-
-        total_fee = 0
-        for tx in pool:
-            if len(tx.fee) == 0:
-                continue
-            total_fee += tx.fee[0]
-
-        print("Total mining reward: " + str(total_fee))
-        mine_choice = input("Would you like to mine a block? (y/n): ")
-
-        if mine_choice != 'y':
             UserInterface.logged_in_menu()
 
         with open(ledger_path, 'rb') as ledger_file:
@@ -543,37 +524,64 @@ class UserInterface:
             new_block = TxBlock(previous_block)
 
         ledger_file.close()
-        j = 0
-        for i, tx in enumerate(pool):
-            if i < 10:
+        reward_tx_count = 0
+        normal_tx_count = 0
+        for tx in pool:
+            if reward_tx_count < 5 and tx.type == REWARD:
                 new_block.addTx(tx)
-                j += 1
+                reward_tx_count += 1
+
+        for tx in pool:
+            if normal_tx_count < 10 - reward_tx_count and tx.type != REWARD:
+                new_block.addTx(tx)
+                normal_tx_count += 1
             else:
                 break
+            
+        print("Transactions to be mined: ")
+        print()
+        for tx in new_block.data:
+            print("Transaction type: " + ("NORMAL" if tx.type == 0 else "REWARD"))
+            print("Transaction " + str(tx.id))
+            print("Inputs: ")
+            for addr, amount in tx.inputs:
+                print("From: " + addr + " Amount: " + str(amount), end=" ")
+            print()
+            print("Outputs: ")
+            for addr, amount in tx.outputs:
+                print("To: " + addr + " Amount: " + str(amount), end=" ")
+            print("Fee: ")
+            for fee in tx.fee:
+                print(fee)
+            print()
+            
+        total_fee = 0
+        for tx in new_block.data:
+            if len(tx.fee) == 0:
+                continue
+            total_fee += tx.fee[0]
+            
+        print("Total mining reward: " + str(total_fee))
+        
+        mine_choice = input("Would you like to mine this block? (y/n): ")
+        
+        if mine_choice != 'y':
+            UserInterface.logged_in_menu()
 
         new_block.id = random.randint(0, 1000)
         new_block.mine(2)
 
         new_block.minedBy = username
-        # put the total fee and username in the block.pendingReward
         new_block.pendingReward.append(total_fee)
         new_block.pendingReward.append(username)
-        # if new_block.is_valid():
-        #     print("Block is valid. ")
-        # else:
-        #     print("Block is not valid.")
-        #     print()
-        #     input("Press enter to return to the main menu.")
-        #     UserInterface.logged_in_menu()
 
-        print(new_block.pendingReward)
         ledger.append(new_block)
 
         fh = open(ledger_path, 'wb')
         pickle.dump(ledger, fh)
         fh.close()
 
-        pool = pool[j:]
+        pool = pool[reward_tx_count + normal_tx_count:]
 
         fh = open(pool_path, 'wb')
         pickle.dump(pool, fh)
