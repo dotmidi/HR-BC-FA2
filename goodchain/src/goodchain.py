@@ -66,7 +66,8 @@ class UserInterface:
         print("6. Cancel a Transaction")
         print("7. Mine a block")
         print("8. View User Keys")
-        print("9. Log out")
+        print("9. Check Chain Validity")
+        print("10. Log out")
         print()
         choice = input("Enter your choice: ")
 
@@ -79,7 +80,8 @@ class UserInterface:
             '6': UserInterface.cancel_transaction,
             '7': UserInterface.mine_block,
             '8': UserInterface.view_user_keys,
-            '9': UserInterface.logout
+            '9': UserInterface.validate_entire_ledger,
+            '10': UserInterface.logout
         }
 
         def default():
@@ -114,7 +116,7 @@ class UserInterface:
     def public_explore():
         os.system('cls' if os.name == 'nt' else 'clear')
         HelperFunctions.explore_ledger()
-        HelperFunctions.validate_entire_ledger()
+        HelperFunctions.validate_entire_ledger(False)
         print()
         input("Press Enter to return to the main menu.")
         UserInterface.public_menu()
@@ -126,7 +128,7 @@ class UserInterface:
         username = input("Enter your username: ")
         password = input("Enter your password: ")
         print(HelperFunctions.register_user(username, password))
-        HelperFunctions.validate_entire_ledger()
+        HelperFunctions.validate_entire_ledger(False)
         print()
         input("Press Enter to return to the main menu.")
         UserInterface.public_menu()
@@ -191,7 +193,7 @@ class UserInterface:
         with open(pool_path, 'wb') as pool_file:
             pickle.dump(pool, pool_file)
 
-        HelperFunctions.validate_entire_ledger()
+        HelperFunctions.validate_entire_ledger(False)
         print("Transaction added to the pool!")
         input("Press enter to return to the main menu.")
         UserInterface.logged_in_menu()
@@ -199,7 +201,7 @@ class UserInterface:
     def user_explore():
         os.system('cls' if os.name == 'nt' else 'clear')
         HelperFunctions.user_explore_ledger(username)
-        HelperFunctions.validate_entire_ledger()
+        HelperFunctions.validate_entire_ledger(False)
         print()
         input("Press Enter to return to the main menu.")
         UserInterface.logged_in_menu()
@@ -237,7 +239,7 @@ class UserInterface:
                 print("Transaction " + str(tx.id) + " is valid.")
             print()
 
-        HelperFunctions.validate_entire_ledger()
+        HelperFunctions.validate_entire_ledger(False)
         input("Press enter to return to the main menu.")
         UserInterface.logged_in_menu()
 
@@ -278,7 +280,7 @@ class UserInterface:
                 print("Fee: " + str(fee))
             print()
 
-        HelperFunctions.validate_entire_ledger()
+        HelperFunctions.validate_entire_ledger(False)
         input("Press enter to return to the main menu.")
         UserInterface.logged_in_menu()
 
@@ -394,7 +396,7 @@ class UserInterface:
         with open(pool_path, 'wb') as pool_file:
             pickle.dump(pool, pool_file)
 
-        HelperFunctions.validate_entire_ledger()
+        HelperFunctions.validate_entire_ledger(False)
         print("Transaction edited.")
         print()
 
@@ -466,7 +468,7 @@ class UserInterface:
         with open(pool_path, 'wb') as pool_file:
             pickle.dump(pool, pool_file)
 
-        HelperFunctions.validate_entire_ledger()
+        HelperFunctions.validate_entire_ledger(False)
         print("Transaction cancelled.")
         print()
         input("Press enter to return to the main menu.")
@@ -499,6 +501,7 @@ class UserInterface:
 
         if len(ledger) == 0:
             new_block = TxBlock(None)
+            new_block.id = 0
         else:
             previous_block = ledger[-1]
             if previous_block.flags < 3:
@@ -518,6 +521,7 @@ class UserInterface:
                 UserInterface.logged_in_menu()
 
             new_block = TxBlock(previous_block)
+            new_block.id = previous_block.id + 1
 
         ledger_file.close()
         reward_tx_count = 0
@@ -569,7 +573,6 @@ class UserInterface:
         if mine_choice != 'y':
             UserInterface.logged_in_menu()
 
-        new_block.id = random.randint(0, 1000)
         new_block.mine(2)
         print("Mining successful.")
 
@@ -597,6 +600,13 @@ class UserInterface:
     def view_user_keys():
         os.system('cls' if os.name == 'nt' else 'clear')
         HelperFunctions.print_user_keys(username)
+        print()
+        input("Press Enter to return to the main menu.")
+        UserInterface.logged_in_menu()
+
+    def validate_entire_ledger():
+        os.system('cls' if os.name == 'nt' else 'clear')
+        HelperFunctions.validate_entire_ledger(True)
         print()
         input("Press Enter to return to the main menu.")
         UserInterface.logged_in_menu()

@@ -346,7 +346,19 @@ class HelperFunctions:
                                     for block in ledger:
                                         pickle.dump(block, ledger_filew)
                             else:
-                                print("Block not validated")
+                                print("Block not valid. Removing block...")
+                                ledger = []
+                                ledger_file.seek(0)
+                                try:
+                                    while True:
+                                        ledger.append(
+                                            pickle.load(ledger_file))
+                                except EOFError:
+                                    pass
+                                ledger.pop()
+                                with open(ledger_path, 'wb') as ledger_filew:
+                                    for block in ledger:
+                                        pickle.dump(block, ledger_filew)
                         elif txBlock.minedBy == username:
                             print("Block mined by you, cannot validate own block")
                         elif username in txBlock.validatedBy:
@@ -506,14 +518,16 @@ class HelperFunctions:
         cursor.close()
         connection.close()
 
-    def validate_entire_ledger():
+    def validate_entire_ledger(func):
         with open(ledger_path, 'rb') as ledger_file:
             try:
                 while True:
                     block = pickle.load(ledger_file)
                     for txBlock in block:
-                        if txBlock.is_valid():
+                        if not func and txBlock.is_valid():
                             continue
+                        elif txBlock.is_valid():
+                            print("Block " + str(txBlock.id) + " is valid")
                         else:
                             print("Block " + str(txBlock.id) +
                                   " is invalid, exiting")
