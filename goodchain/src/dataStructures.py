@@ -15,6 +15,7 @@ REWARD_VALUE = 50.0
 NORMAL = 0
 REWARD = 1
 
+
 class MiscFunctions:
     def get_user_public_key(username):
         database_path = os.path.join(os.path.dirname(
@@ -26,6 +27,7 @@ class MiscFunctions:
             'SELECT * FROM registered_users WHERE username = ?', (username,))
         user = cursor.fetchone()
         return user[3]
+
 
 class CBlock:
     data = None

@@ -222,13 +222,13 @@ class UserInterface:
             UserInterface.logged_in_menu()
 
         for tx in pool:
+            print("Transaction type: " + ("NORMAL" if tx.type == 0 else "REWARD"))
             print("Transaction " + str(tx.id))
             print("From: " + str(tx.inputs[0][0]) +
                   " | To: " + str(tx.outputs[0][0]))
             print("Inputs: " + str(tx.inputs) +
                   " | Outputs: " + str(tx.outputs))
             print("Fee: " + str(tx.fee))
-            print()
             if not tx.is_valid():
                 print("Transaction + " + tx.id +
                       " is not valid. Removing from the pool.")
@@ -315,9 +315,7 @@ class UserInterface:
             # print("Signatures: ")
             # for s in tx.sigs:
             #     print(s)
-            print("Fee: ")
-            for fee in tx.fee:
-                print(fee)
+            print("Fee: ".join(str(fee) for fee in tx.fee))
             print()
 
         choice = input(
@@ -436,9 +434,7 @@ class UserInterface:
             # print("Signatures: ")
             # for s in tx.sigs:
             #     print(s)
-            print("Fee:")
-            for fee in tx.fee:
-                print(fee)
+            print("Fee: " + ", ".join(str(fee) for fee in tx.fee))
             print()
         choice = input(
             "Enter the ID of the transaction you would like to cancel (enter 'r' to return to the main menu): ")
@@ -527,6 +523,11 @@ class UserInterface:
         reward_tx_count = 0
         normal_tx_count = 0
         for tx in pool:
+            if reward_tx_count < 5 and tx.outputs[0][0] == "MINING REWARD":
+                new_block.addTx(tx)
+                reward_tx_count += 1
+
+        for tx in pool:
             if reward_tx_count < 5 and tx.type == REWARD:
                 new_block.addTx(tx)
                 reward_tx_count += 1
@@ -535,9 +536,7 @@ class UserInterface:
             if normal_tx_count < 10 - reward_tx_count and tx.type != REWARD:
                 new_block.addTx(tx)
                 normal_tx_count += 1
-            else:
-                break
-            
+
         print("Transactions to be mined: ")
         print()
         for tx in new_block.data:
@@ -545,31 +544,34 @@ class UserInterface:
             print("Transaction " + str(tx.id))
             print("Inputs: ")
             for addr, amount in tx.inputs:
-                print("From: " + addr + " Amount: " + str(amount), end=" ")
-            print()
+                print("From: " + addr + " Amount: " + str(amount))
             print("Outputs: ")
             for addr, amount in tx.outputs:
-                print("To: " + addr + " Amount: " + str(amount), end=" ")
-            print("Fee: ")
-            for fee in tx.fee:
-                print(fee)
+                print("To: " + addr + " Amount: " + str(amount))
+            print("Fee: ", end="")
+            if len(tx.fee) == 0:
+                print(0)
+            else:
+                for fee in tx.fee:
+                    print(fee)
             print()
-            
+
         total_fee = 0
         for tx in new_block.data:
             if len(tx.fee) == 0:
                 continue
             total_fee += tx.fee[0]
-            
-        print("Total mining reward: " + str(total_fee))
-        
+
+        print("Total mining reward: " + str(total_fee + 50))
+
         mine_choice = input("Would you like to mine this block? (y/n): ")
-        
+
         if mine_choice != 'y':
             UserInterface.logged_in_menu()
 
         new_block.id = random.randint(0, 1000)
         new_block.mine(2)
+        print("Mining successful.")
 
         new_block.minedBy = username
         new_block.pendingReward.append(total_fee)
