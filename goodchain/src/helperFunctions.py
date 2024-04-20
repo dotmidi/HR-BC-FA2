@@ -425,30 +425,37 @@ class HelperFunctions:
     def check_data_validity(startup):
         data_path = os.path.join(os.path.dirname(
             os.path.dirname(__file__)), 'data')
-        data_hash = hashlib.sha256()
+        file_hashes = {}
+        tampered_files = []
+
         for file in ['goodchain.db', 'ledger.dat', 'pool.dat']:
             with open(os.path.join(data_path, file), 'rb') as f:
-                data_hash.update(f.read())
-
-        data_hash_digest = data_hash.digest()
+                file_hash = hashlib.sha256(f.read()).digest()
+                file_hashes[file] = file_hash
 
         if os.path.getsize(os.path.join(data_path, 'hash.dat')) == 0:
             with open(os.path.join(data_path, 'hash.dat'), 'wb') as hash_file:
-                hash_file.write(data_hash_digest)
+                pickle.dump(file_hashes, hash_file)
                 return
 
         hash_path = os.path.join(data_path, 'hash.dat')
         if startup:
             with open(hash_path, 'rb') as hash_file:
-                stored_hash = hash_file.read()
-            if data_hash_digest == stored_hash:
-                print("Data is valid")
+                stored_hashes = pickle.load(hash_file)
+
+            for file, stored_hash in stored_hashes.items():
+                if file in file_hashes and file_hashes[file] == stored_hash:
+                    print(f"{file} is valid")
             else:
-                print("Data has been tampered with")
+                print(f"{file} has been tampered with")
+                tampered_files.append(file)
+
+            if tampered_files:
+                print("Tampered files: ", ", ".join(tampered_files))
                 exit()
 
         with open(hash_path, 'wb') as hash_file:
-            hash_file.write(data_hash_digest)
+            pickle.dump(file_hashes, hash_file)
 
     def print_blockchain_info():
         print()
@@ -527,12 +534,75 @@ class HelperFunctions:
                         if not func and txBlock.is_valid():
                             continue
                         elif txBlock.is_valid():
-                            print("Block " + str(txBlock.id) + " is valid")
+                            print("Block " + str(txBlock.id) + " is valid.")
                         else:
                             print("Block " + str(txBlock.id) +
-                                  " is invalid, exiting")
+                                  " is invalid, exiting...")
                             exit()
             except EOFError:
                 pass
 
         HelperFunctions.check_data_validity(False)
+
+class NotificationSystem:
+    def __init__(self):
+        pass
+
+    def notify_user(username, message):
+        connection = sqlite3.connect(database_path)
+        cursor = connection.cursor()
+
+        cursor.execute(
+            'SELECT * FROM registered_users WHERE username = ?', (username,))
+        user = cursor.fetchone()
+        if user:
+            public_key = user[3]
+        else:
+            os.system('cls' if os.name == 'nt' else 'clear')
+            print("**Invalid username, please try again.**")
+            print()
+            return False
+
+        message = message.encode('utf-8')
+        public_key = serialization.load_pem_public_key(
+            public_key, backend=default_backend())
+        encrypted_message = public_key.encrypt(
+            message, padding.OAEP(mgf=padding.MGF1(algorithm=hashes.SHA256()), algorithm=hashes.SHA256(), label=None))
+
+        with open(os.path.join(os.path.dirname(os.path.dirname(__file__)), 'data', 'notifications.dat'), 'ab') as notifications_file:
+            pickle.dump(encrypted_message, notifications_file)
+
+        cursor.close()
+        connection.close()
+
+    def read_notifications(username):
+        connection = sqlite3.connect(database_path)
+        cursor = connection.cursor()
+
+        cursor.execute(
+            'SELECT * FROM registered_users WHERE username = ?', (username,))
+        user = cursor.fetchone()
+        if user:
+            private_key = user[2]
+        else:
+            os.system('cls' if os.name == 'nt' else 'clear')
+            print("**Invalid username, please try again.**")
+            print()
+            return False
+
+        with open(os.path.join(os.path.dirname(os.path.dirname(__file__)), 'data', 'notifications.dat'), 'rb') as notifications_file:
+            try:
+                while True:
+                    encrypted_message = pickle.load(notifications_file)
+                    decrypted_message = Signature.decrypt_message(
+                        private_key, encrypted_message)
+                    print(decrypted_message.decode('utf-8'))
+            except EOFError:
+                pass
+
+        cursor.close()
+        connection.close()
+
+    def clear_notifications():
+        with open(os.path.join(os.path.dirname(os.path.dirname(__file__)), 'data', 'notifications.dat'), 'wb') as notifications_file:
+            pass

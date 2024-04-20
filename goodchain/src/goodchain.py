@@ -1,4 +1,4 @@
-from helperFunctions import HelperFunctions, database_path, ledger_path, pool_path
+from helperFunctions import HelperFunctions, database_path, ledger_path, pool_path, NotificationSystem
 from dataStructures import *
 import os
 import time
@@ -536,7 +536,9 @@ class UserInterface:
                 new_block.addTx(tx)
                 reward_tx_count += 1
 
-        for tx in pool:
+        sorted_pool = sorted(
+            pool, key=lambda tx: tx.fee[0] if tx.fee else 0, reverse=True)
+        for tx in sorted_pool:
             if normal_tx_count < 10 - reward_tx_count and tx.type != REWARD:
                 new_block.addTx(tx)
                 normal_tx_count += 1
@@ -573,7 +575,12 @@ class UserInterface:
         if mine_choice != 'y':
             UserInterface.logged_in_menu()
 
-        new_block.mine(2)
+        elapsed_time = new_block.mine(2)
+        if elapsed_time > 20:
+            print("Mining took too long, please try again.")
+            print()
+            input("Press enter to return to the main menu.")
+            UserInterface.logged_in_menu()
         print("Mining successful.")
 
         new_block.minedBy = username

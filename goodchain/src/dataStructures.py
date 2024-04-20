@@ -89,7 +89,7 @@ class TxBlock (CBlock):
         digest.update(bytes(str(self.previousHash), 'utf-8'))
 
         found = False
-        nonce = 0
+        nonce = random.randint(0, 1000000000)
         starttime = time.time()
         timing_variable = 1
         while not found:
@@ -97,18 +97,16 @@ class TxBlock (CBlock):
             h.update(bytes(str(nonce), 'utf-8'))
             hash_value = h.finalize()
 
-            # If time elapsed and difficulty_timer is less than the desired value, increase difficulty
-            if (time.time() - starttime > 10 and timing_variable < 50000):
-                # print("Difficulty increased")
-                timing_variable *= 2  # Adjust the difficulty based on your criteria
+            if time.time() - starttime > 10 and timing_variable < 100000:
+                timing_variable *= 2
+            elif time.time() - starttime > 15 and timing_variable < 1000000:
+                timing_variable *= 2
 
-            # Check if hash meets difficulty criteria
             if hash_value[:leading_zero] == bytes('0'*leading_zero, 'utf-8'):
                 if int(hash_value[leading_zero]) < timing_variable:
                     found = True
                     self.nonce = nonce
-                    break  # Exit loop if the nonce is found
-            # Print the nonce being tried
+                    break
             sys.stdout.write("\rNonce: " + str(nonce))
             sys.stdout.write("\tElapsed time: {:.2f}".format(
                 time.time() - starttime))
@@ -119,6 +117,7 @@ class TxBlock (CBlock):
         self.blockHash = self.computeHash()
         self.timeOfCreation = datetime.datetime.now().strftime("%d-%m-%Y %H:%M:%S")
         print()
+        return time.time() - starttime
 
 
 class Tx:
