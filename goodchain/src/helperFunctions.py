@@ -26,6 +26,9 @@ pool_path = os.path.join(os.path.dirname(
 hash_path = os.path.join(os.path.dirname(
     os.path.dirname(__file__)), 'data', 'hash.dat')
 
+notifications_path = os.path.join(os.path.dirname(
+    os.path.dirname(__file__)), 'data', 'notifications.dat')
+
 
 class HelperFunctions:
     def __init__(self):
@@ -54,6 +57,10 @@ class HelperFunctions:
 
         if not os.path.exists(hash_path):
             with open(hash_path, 'wb') as hash_file:
+                pass
+
+        if not os.path.exists(notifications_path):
+            with open(notifications_path, 'wb') as notifications_file:
                 pass
 
     def register_user(username, password):
@@ -157,7 +164,6 @@ class HelperFunctions:
             print()
             return False
 
-        # get the balance from the ledger
         balance = 0
         ledger_path = os.path.join(os.path.dirname(
             os.path.dirname(__file__)), 'data', 'ledger.dat')
@@ -243,13 +249,12 @@ class HelperFunctions:
             try:
                 while True:
                     block = pickle.load(ledger_file)
+                    if block[-1].pendingReward != []:
+                        if block[-1].pendingReward[1] == username:
+                            print("Pending reward for " + username +
+                                  ": " + str(block[-1].pendingReward[0] + 50) + " GoodCoins")
             except EOFError:
                 pass
-
-        if block[-1].pendingReward != []:
-            if block[-1].pendingReward[1] == username:
-                print("Pending reward for " + username +
-                      ": " + str(block[-1].pendingReward[0] + 50) + " GoodCoins")
 
     def check_user_exists(username):
         connection = sqlite3.connect(database_path)
@@ -345,20 +350,45 @@ class HelperFunctions:
                                 with open(ledger_path, 'wb') as ledger_filew:
                                     for block in ledger:
                                         pickle.dump(block, ledger_filew)
+                                NotificationSystem.create_notification(
+                                    txBlock.minedBy, "Block " + str(txBlock.id) + " now has " + str(txBlock.flags) + "/3 flags")
                             else:
-                                print("Block not valid. Removing block...")
-                                ledger = []
-                                ledger_file.seek(0)
-                                try:
-                                    while True:
-                                        ledger.append(
-                                            pickle.load(ledger_file))
-                                except EOFError:
-                                    pass
-                                ledger.pop()
-                                with open(ledger_path, 'wb') as ledger_filew:
-                                    for block in ledger:
-                                        pickle.dump(block, ledger_filew)
+                                txBlock.invalidFlags += 1
+                                print("Block is invalid, invalid flags: " +
+                                      str(txBlock.invalidFlags))
+                                if txBlock.invalidFlags == 3:
+                                    print(
+                                        "Block has reached 3 invalid flags, removing block from ledger...")
+                                    ledger = []
+                                    ledger_file.seek(0)
+                                    try:
+                                        while True:
+                                            ledger.append(
+                                                pickle.load(ledger_file))
+                                    except EOFError:
+                                        pass
+                                    ledger.pop()
+                                    with open(ledger_path, 'wb') as ledger_filew:
+                                        for block in ledger:
+                                            pickle.dump(block, ledger_filew)
+                                    NotificationSystem.create_notification(
+                                        txBlock.minedBy, "Block " + str(txBlock.id) + " has received 3 invalid flags and has been removed from the ledger")
+                                else:
+                                    ledger = []
+                                    ledger_file.seek(0)
+                                    try:
+                                        while True:
+                                            ledger.append(
+                                                pickle.load(ledger_file))
+                                    except EOFError:
+                                        pass
+                                    ledger.pop()
+                                    ledger.append(block)
+                                    with open(ledger_path, 'wb') as ledger_filew:
+                                        for block in ledger:
+                                            pickle.dump(block, ledger_filew)
+                                    NotificationSystem.create_notification(
+                                        txBlock.minedBy, "Block " + str(txBlock.id) + " has received an invalid flag")
                         elif txBlock.minedBy == username:
                             print("Block mined by you, cannot validate own block")
                         elif username in txBlock.validatedBy:
@@ -398,6 +428,12 @@ class HelperFunctions:
                             with open(ledger_path, 'wb') as ledger_filew:
                                 for block in ledger:
                                     pickle.dump(block, ledger_filew)
+                            for tx in txBlock.data:
+                                for addr, amount in tx.outputs:
+                                    NotificationSystem.create_notification(
+                                        addr, "A block which you have a transaction in has been fully validated.")
+                            NotificationSystem.create_notification(
+                                txBlock.minedBy, "Block " + str(txBlock.id) + " has been fully validated and your mining reward has been added to the pool")
 
                         if txBlock.flags == 3:
                             print(
@@ -425,37 +461,26 @@ class HelperFunctions:
     def check_data_validity(startup):
         data_path = os.path.join(os.path.dirname(
             os.path.dirname(__file__)), 'data')
-        file_hashes = {}
-        tampered_files = []
-
-        for file in ['goodchain.db', 'ledger.dat', 'pool.dat']:
+        data_hash = hashlib.sha256()
+        for file in ['goodchain.db', 'ledger.dat', 'pool.dat', 'notifications.dat']:
             with open(os.path.join(data_path, file), 'rb') as f:
-                file_hash = hashlib.sha256(f.read()).digest()
-                file_hashes[file] = file_hash
-
+                data_hash.update(f.read())
+        data_hash_digest = data_hash.digest()
         if os.path.getsize(os.path.join(data_path, 'hash.dat')) == 0:
             with open(os.path.join(data_path, 'hash.dat'), 'wb') as hash_file:
-                pickle.dump(file_hashes, hash_file)
+                hash_file.write(data_hash_digest)
                 return
-
         hash_path = os.path.join(data_path, 'hash.dat')
         if startup:
             with open(hash_path, 'rb') as hash_file:
-                stored_hashes = pickle.load(hash_file)
-
-            for file, stored_hash in stored_hashes.items():
-                if file in file_hashes and file_hashes[file] == stored_hash:
-                    print(f"{file} is valid")
+                stored_hash = hash_file.read()
+            if data_hash_digest == stored_hash:
+                print("Data is valid")
             else:
-                print(f"{file} has been tampered with")
-                tampered_files.append(file)
-
-            if tampered_files:
-                print("Tampered files: ", ", ".join(tampered_files))
+                print("Data has been tampered with")
                 exit()
-
         with open(hash_path, 'wb') as hash_file:
-            pickle.dump(file_hashes, hash_file)
+            hash_file.write(data_hash_digest)
 
     def print_blockchain_info():
         print()
@@ -544,65 +569,38 @@ class HelperFunctions:
 
         HelperFunctions.check_data_validity(False)
 
+
 class NotificationSystem:
     def __init__(self):
         pass
 
-    def notify_user(username, message):
-        connection = sqlite3.connect(database_path)
-        cursor = connection.cursor()
+    def create_notification(username, message):
+        with open(notifications_path, 'rb') as notifications_file:
+            try:
+                notifications = pickle.load(notifications_file)
+            except EOFError:
+                notifications = []
 
-        cursor.execute(
-            'SELECT * FROM registered_users WHERE username = ?', (username,))
-        user = cursor.fetchone()
-        if user:
-            public_key = user[3]
-        else:
-            os.system('cls' if os.name == 'nt' else 'clear')
-            print("**Invalid username, please try again.**")
-            print()
-            return False
+        notifications.append((username, message))
 
-        message = message.encode('utf-8')
-        public_key = serialization.load_pem_public_key(
-            public_key, backend=default_backend())
-        encrypted_message = public_key.encrypt(
-            message, padding.OAEP(mgf=padding.MGF1(algorithm=hashes.SHA256()), algorithm=hashes.SHA256(), label=None))
-
-        with open(os.path.join(os.path.dirname(os.path.dirname(__file__)), 'data', 'notifications.dat'), 'ab') as notifications_file:
-            pickle.dump(encrypted_message, notifications_file)
-
-        cursor.close()
-        connection.close()
+        with open(notifications_path, 'wb') as notifications_file:
+            pickle.dump(notifications, notifications_file)
 
     def read_notifications(username):
-        connection = sqlite3.connect(database_path)
-        cursor = connection.cursor()
-
-        cursor.execute(
-            'SELECT * FROM registered_users WHERE username = ?', (username,))
-        user = cursor.fetchone()
-        if user:
-            private_key = user[2]
-        else:
-            os.system('cls' if os.name == 'nt' else 'clear')
-            print("**Invalid username, please try again.**")
-            print()
-            return False
-
-        with open(os.path.join(os.path.dirname(os.path.dirname(__file__)), 'data', 'notifications.dat'), 'rb') as notifications_file:
+        with open(notifications_path, 'rb') as notifications_file:
             try:
-                while True:
-                    encrypted_message = pickle.load(notifications_file)
-                    decrypted_message = Signature.decrypt_message(
-                        private_key, encrypted_message)
-                    print(decrypted_message.decode('utf-8'))
+                notifications = pickle.load(notifications_file)
             except EOFError:
-                pass
+                notifications = []
 
-        cursor.close()
-        connection.close()
+        for notification in notifications:
+            if notification[0] == username:
+                print()
+                print(f"\033[1m{notification[1]}\033[0m")
+                print()
 
-    def clear_notifications():
-        with open(os.path.join(os.path.dirname(os.path.dirname(__file__)), 'data', 'notifications.dat'), 'wb') as notifications_file:
-            pass
+        notifications = [
+            notification for notification in notifications if notification[0] != username]
+
+        with open(notifications_path, 'wb') as notifications_file:
+            pickle.dump(notifications, notifications_file)

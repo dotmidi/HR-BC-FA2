@@ -55,6 +55,7 @@ class UserInterface:
     def logged_in_menu():
         os.system('cls' if os.name == 'nt' else 'clear')
         print("User currently logged in: " + username)
+        NotificationSystem.read_notifications(username)
         HelperFunctions.print_user_balance(username)
         HelperFunctions.print_blockchain_info()
         HelperFunctions.check_data_validity(False)
@@ -136,16 +137,37 @@ class UserInterface:
     def transfer_coins():
         os.system('cls' if os.name == 'nt' else 'clear')
         print("Transfer Coins")
+        print()
+        print("Please note that transactions with higher fees will be prioritized in the mining process.")
+        print("Any value left over from the input amount after the output and fee will be added to the fee.")
+        print()
+        print("Enter 'r' at any time to redo the transaction, 'exit' to return to the main menu.")
+        print()
 
         with open(pool_path, 'rb') as pool_file:
             pool = pickle.load(pool_file)
 
         try:
             recipient = input("Enter the recipient's username: ")
+            if recipient == 'r':
+                UserInterface.transfer_coins()
+            if recipient == 'exit':
+                UserInterface.logged_in_menu()
+            if not HelperFunctions.check_user_exists(recipient):
+                print("Recipient does not exist.")
+                print()
+                input("Please try again.")
+                UserInterface.transfer_coins()
             tx_input = float(input("Enter the input amount: "))
+            if tx_input == 'r':
+                UserInterface.transfer_coins()
             tx_output = float(
                 input("Enter the output amount for the recipient: "))
+            if tx_output == 'r':
+                UserInterface.transfer_coins()
             fee = float(input("Enter the transaction fee: "))
+            if fee == 'r':
+                UserInterface.transfer_coins()
         except ValueError:
             print("Invalid input. Please enter a valid number.")
             print()
@@ -154,12 +176,6 @@ class UserInterface:
 
         if tx_input < tx_output + fee:
             print("Invalid transaction: input must be greater than output and fee.")
-            print()
-            input("Press enter to return to the main menu.")
-            UserInterface.logged_in_menu()
-
-        if not HelperFunctions.check_user_exists(recipient):
-            print("Recipient does not exist.")
             print()
             input("Press enter to return to the main menu.")
             UserInterface.logged_in_menu()
@@ -176,10 +192,21 @@ class UserInterface:
             input("Press enter to return to the main menu.")
             UserInterface.logged_in_menu()
 
-        private_key = HelperFunctions.get_user_private_key(username)
-
         if tx_input - tx_output - fee > 0:
             fee += round(tx_input - tx_output - fee, 1)
+
+        print()
+        print("You have input " + str(tx_input) + ", " + str(tx_output) +
+              " of which will be sent to " + recipient + " and set a transaction fee of " + str(fee) + " coins.")
+        confirm = input("Confirm transaction? (y/n): ")
+
+        if confirm != 'y':
+            print()
+            print("Transaction cancelled.")
+            input("Press enter to return to the main menu.")
+            UserInterface.logged_in_menu()
+
+        private_key = HelperFunctions.get_user_private_key(username)
 
         new_tx = Tx()
         new_tx.id = random.randint(0, 1000)
@@ -193,6 +220,8 @@ class UserInterface:
         with open(pool_path, 'wb') as pool_file:
             pickle.dump(pool, pool_file)
 
+        NotificationSystem.create_notification(
+            recipient, "You have received a transaction worth " + str(tx_output) + " coins from " + username + " in the pool.")
         HelperFunctions.validate_entire_ledger(False)
         print("Transaction added to the pool!")
         input("Press enter to return to the main menu.")
@@ -340,17 +369,33 @@ class UserInterface:
 
         tx = user_transactions[choice - 1]
 
+        print("Enter 'r' at any time to redo the transaction, exit to return to the main menu.")
+        print()
         try:
             print("Previous recipient: " + tx.outputs[0][0])
             recipient = input("Enter the recipient's username: ")
+            if recipient == 'r':
+                UserInterface.edit_transaction()
+            if not HelperFunctions.check_user_exists(recipient):
+                print("Recipient does not exist.")
+                print()
+                input("Press enter to return to the main menu.")
+                UserInterface.logged_in_menu()
             print("Previous input: " + str(tx.inputs[0][1]))
-            tx_input = float(input("Enter the input amount: "))
+            tx_input = input("Enter the input amount: ")
+            if tx_input == 'r':
+                UserInterface.edit_transaction()
+            tx_input = float(tx_input)
             print("Previous output: " + str(tx.outputs[0][1]))
-            tx_output = float(
-                input("Enter the output amount for the recipient: "))
+            tx_output = input("Enter the output amount for the recipient: ")
+            if tx_output == 'r':
+                UserInterface.edit_transaction()
+            tx_output = float(tx_output)
             print("Previous fee: " + str(tx.fee[0]))
-            fee = float(input("Enter the transaction fee: "))
-
+            fee = input("Enter the transaction fee: ")
+            if fee == 'r':
+                UserInterface.edit_transaction()
+            fee = float(fee)
         except ValueError:
             print("Invalid input. Please enter a valid number.")
             print()
@@ -359,12 +404,6 @@ class UserInterface:
 
         if tx_input < tx_output + fee:
             print("Invalid transaction: input must be greater than output and fee.")
-            print()
-            input("Press enter to return to the main menu.")
-            UserInterface.logged_in_menu()
-
-        if not HelperFunctions.check_user_exists(recipient):
-            print("Recipient does not exist.")
             print()
             input("Press enter to return to the main menu.")
             UserInterface.logged_in_menu()
@@ -378,6 +417,20 @@ class UserInterface:
         if HelperFunctions.check_user_balance(username) < tx_input:
             print("Insufficient balance.")
             print()
+            input("Press enter to return to the main menu.")
+            UserInterface.logged_in_menu()
+
+        if tx_input - tx_output - fee > 0:
+            fee += round(tx_input - tx_output - fee, 1)
+
+        print()
+        print("You have input " + str(tx_input) + ", " + str(tx_output) +
+              " of which will be sent to " + recipient + " and set a transaction fee of " + str(fee) + " coins.")
+        confirm = input("Confirm transaction? (y/n): ")
+
+        if confirm != 'y':
+            print()
+            print("Transaction cancelled.")
             input("Press enter to return to the main menu.")
             UserInterface.logged_in_menu()
 
@@ -396,6 +449,8 @@ class UserInterface:
         with open(pool_path, 'wb') as pool_file:
             pickle.dump(pool, pool_file)
 
+        NotificationSystem.create_notification(
+            recipient, "A transaction destined for you from " + username + " has been edited in the pool.")
         HelperFunctions.validate_entire_ledger(False)
         print("Transaction edited.")
         print()
@@ -439,9 +494,19 @@ class UserInterface:
             print("Fee: " + ", ".join(str(fee) for fee in tx.fee))
             print()
         choice = input(
-            "Enter the ID of the transaction you would like to cancel (enter 'r' to return to the main menu): ")
+            "Enter the ID of the transaction you would like to cancel (enter 'exit' to return to the main menu): ")
 
-        if choice == 'r':
+        if choice == 'exit':
+            UserInterface.logged_in_menu()
+
+        # ask for additional confirmation
+        confirm = input(
+            "Are you sure you want to cancel transaction " + choice + "? (y/n): ")
+
+        if confirm != 'y':
+            print()
+            print("Transaction cancellation cancelled.")
+            input("Press enter to return to the main menu.")
             UserInterface.logged_in_menu()
 
         try:
@@ -468,6 +533,8 @@ class UserInterface:
         with open(pool_path, 'wb') as pool_file:
             pickle.dump(pool, pool_file)
 
+        NotificationSystem.create_notification(
+            transaction_to_cancel.outputs[0][0], "A transaction destined for you from " + username + " has been cancelled.")
         HelperFunctions.validate_entire_ledger(False)
         print("Transaction cancelled.")
         print()
@@ -599,6 +666,10 @@ class UserInterface:
         pickle.dump(pool, fh)
         fh.close()
 
+        for tx in new_block.data:
+            for addr, amount in tx.outputs:
+                NotificationSystem.create_notification(
+                    addr, "A transaction destined for you from " + tx.inputs[0][0] + " has been mined in the ledger. Please verify the new block to receive the coins.")
         print("Block added to the ledger.")
         print()
         input("Press enter to return to the main menu.")

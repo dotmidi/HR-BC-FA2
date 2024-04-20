@@ -28,7 +28,6 @@ class MiscFunctions:
         user = cursor.fetchone()
         return user[3]
 
-
 class CBlock:
     data = None
     previousHash = None
@@ -43,6 +42,7 @@ class CBlock:
         self.timeOfCreation = None
         self.minedBy = None
         self.flags = 0
+        self.invalidFlags = 0
         self.validatedBy = []
         self.pendingReward = []
         if previousBlock != None:
@@ -89,7 +89,7 @@ class TxBlock (CBlock):
         digest.update(bytes(str(self.previousHash), 'utf-8'))
 
         found = False
-        nonce = random.randint(0, 1000000000)
+        nonce = 0
         starttime = time.time()
         timing_variable = 1
         while not found:
@@ -97,10 +97,8 @@ class TxBlock (CBlock):
             h.update(bytes(str(nonce), 'utf-8'))
             hash_value = h.finalize()
 
-            if time.time() - starttime > 10 and timing_variable < 100000:
-                timing_variable *= 2
-            elif time.time() - starttime > 15 and timing_variable < 1000000:
-                timing_variable *= 2
+            if time.time() - starttime > 10:
+                timing_variable *= 50
 
             if hash_value[:leading_zero] == bytes('0'*leading_zero, 'utf-8'):
                 if int(hash_value[leading_zero]) < timing_variable:
