@@ -251,7 +251,7 @@ class HelperFunctions:
                     block = pickle.load(ledger_file)
                     if block[-1].pendingReward != []:
                         if block[-1].pendingReward[1] == username:
-                            print("Pending reward for " + username +
+                            print("Pending mining reward for " + username +
                                   ": " + str(block[-1].pendingReward[0] + 50) + " GoodCoins")
             except EOFError:
                 pass
@@ -351,7 +351,7 @@ class HelperFunctions:
                                     for block in ledger:
                                         pickle.dump(block, ledger_filew)
                                 NotificationSystem.create_notification(
-                                    txBlock.minedBy, "Block " + str(txBlock.id) + " now has " + str(txBlock.flags) + "/3 flags")
+                                    txBlock.minedBy, "The block you mined has been validated by " + username)
                             else:
                                 txBlock.invalidFlags += 1
                                 print("Block is invalid, invalid flags: " +
@@ -393,8 +393,6 @@ class HelperFunctions:
                             print("Block mined by you, cannot validate own block")
                         elif username in txBlock.validatedBy:
                             print("Block already validated by you")
-                        else:
-                            continue
 
                         if txBlock.pendingReward != [] and txBlock.flags == 3:
                             tx = Tx(type=REWARD)
@@ -438,7 +436,6 @@ class HelperFunctions:
                         if txBlock.flags == 3:
                             print(
                                 "Block has 3/3 flags, block has been fully validated")
-
                         for tx in txBlock.data:
                             print()
                             print(
