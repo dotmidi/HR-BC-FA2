@@ -10,3 +10,11 @@
   * [X] whenever
     * [X] a user's transaction is mined
     * [X] a miner's block got validated
+* [X] automatic login actions
+  * [X] check tx pool and remove invalid transactions
+    * [X] remove functionality from check_pool
+  * [X] entire blockchain check
+    * [X] validate
+    * [X] if 3 flags => add reward tx to pool
+    * [X] if 3 invalidFlags => remove block
+    * [X] remove functionality from user_check_ledger

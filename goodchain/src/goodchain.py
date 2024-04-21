@@ -1,4 +1,4 @@
-from helperFunctions import HelperFunctions, database_path, ledger_path, pool_path, NotificationSystem
+from helperFunctions import HelperFunctions, database_path, ledger_path, pool_path, NotificationSystem, AutomaticLoginActions, WalletFunctions
 from dataStructures import *
 import os
 import time
@@ -25,7 +25,7 @@ class UserInterface:
         print("Public Menu")
         print("Welcome to Goodchain!")
         HelperFunctions.check_data_validity(False)
-        HelperFunctions.print_blockchain_info()
+        NotificationSystem.print_blockchain_info()
         print("1. Login")
         print("2. Explore the blockchain")
         print("3. Sign up")
@@ -35,7 +35,7 @@ class UserInterface:
 
         switch = {
             '1': UserInterface.login,
-            '2': UserInterface.public_explore,
+            '2': UserInterface.explore_ledger,
             '3': UserInterface.signup,
             '4': lambda: print("Goodbye!") or exit()
         }
@@ -44,7 +44,7 @@ class UserInterface:
             os.system('cls' if os.name == 'nt' else 'clear')
             print("Invalid choice, please try again.")
             print()
-            input("Press enter to return to the main menu.")
+            input("Press Enter to return to the main menu.")
             UserInterface.public_menu()
 
         try:
@@ -52,12 +52,14 @@ class UserInterface:
         except TypeError:
             print("Invalid choice, please try again.")
 
-    def logged_in_menu():
+    def logged_in_menu(first_login=False):
         os.system('cls' if os.name == 'nt' else 'clear')
         print("User currently logged in: " + username)
+        if first_login:
+            AutomaticLoginActions.main(username)
         NotificationSystem.read_notifications(username)
-        HelperFunctions.print_user_balance(username)
-        HelperFunctions.print_blockchain_info()
+        WalletFunctions.print_user_balance(username)
+        NotificationSystem.print_blockchain_info()
         HelperFunctions.check_data_validity(False)
         print("1. Transfer coins")
         print("2. Explore the blockchain")
@@ -67,14 +69,14 @@ class UserInterface:
         print("6. Cancel a Transaction")
         print("7. Mine a block")
         print("8. View User Keys")
-        print("9. Check Chain Validity")
+        print("9. Check Ledger Validity")
         print("10. Log out")
         print()
         choice = input("Enter your choice: ")
 
         switch = {
             '1': UserInterface.transfer_coins,
-            '2': UserInterface.user_explore,
+            '2': UserInterface.explore_ledger,
             '3': UserInterface.view_transaction_history,
             '4': UserInterface.check_pool,
             '5': UserInterface.edit_transaction,
@@ -89,7 +91,7 @@ class UserInterface:
             os.system('cls' if os.name == 'nt' else 'clear')
             print("Invalid choice, please try again.")
             print()
-            input("Press enter to return to the main menu.")
+            input("Press Enter to return to the main menu.")
             UserInterface.logged_in_menu()
 
         try:
@@ -109,18 +111,10 @@ class UserInterface:
 
         if HelperFunctions.login_user(username, password):
             is_logged_in = True
-            UserInterface.logged_in_menu()
+            UserInterface.logged_in_menu(True)
         else:
-            input("Press enter to return to the main menu.")
+            input("Press Enter to return to the main menu.")
             UserInterface.public_menu()
-
-    def public_explore():
-        os.system('cls' if os.name == 'nt' else 'clear')
-        HelperFunctions.explore_ledger()
-        HelperFunctions.validate_entire_ledger(False)
-        print()
-        input("Press Enter to return to the main menu.")
-        UserInterface.public_menu()
 
     def signup():
         os.system('cls' if os.name == 'nt' else 'clear')
@@ -158,38 +152,58 @@ class UserInterface:
                 print()
                 input("Please try again.")
                 UserInterface.transfer_coins()
+            elif recipient == username:
+                print("You cannot send coins to yourself.")
+                print()
+                input("Please try again.")
+                UserInterface.transfer_coins()
             tx_input = float(input("Enter the input amount: "))
             if tx_input == 'r':
+                UserInterface.transfer_coins()
+            if tx_input == 'exit':
+                UserInterface.logged_in_menu()
+            if tx_input <= 0:
+                print("Invalid input amount.")
+                print()
+                input("Press Enter to retry.")
                 UserInterface.transfer_coins()
             tx_output = float(
                 input("Enter the output amount for the recipient: "))
             if tx_output == 'r':
                 UserInterface.transfer_coins()
+            if tx_output == 'exit':
+                UserInterface.logged_in_menu()
+            if tx_output <= 0:
+                print("Invalid output amount.")
+                print()
+                input("Press Enter to retry.")
+                UserInterface.transfer_coins()
             fee = float(input("Enter the transaction fee: "))
             if fee == 'r':
                 UserInterface.transfer_coins()
+            if fee == 'exit':
+                UserInterface.logged_in_menu()
+            if fee < 0:
+                print("Invalid fee amount.")
+                print()
+                input("Press Enter to retry.")
+                UserInterface.transfer_coins()
         except ValueError:
-            print("Invalid input. Please enter a valid number.")
+            print("Invalid input. Please Enter a valid number.")
             print()
-            input("Press enter to return to the main menu.")
+            input("Press Enter to return to the main menu.")
             UserInterface.logged_in_menu()
 
         if tx_input < tx_output + fee:
             print("Invalid transaction: input must be greater than output and fee.")
             print()
-            input("Press enter to return to the main menu.")
+            input("Press Enter to return to the main menu.")
             UserInterface.logged_in_menu()
 
-        if recipient == username:
-            print("You cannot send coins to yourself.")
-            print()
-            input("Press enter to return to the main menu.")
-            UserInterface.logged_in_menu()
-
-        if HelperFunctions.check_user_balance(username) < tx_input:
+        if WalletFunctions.check_user_balance(username) < tx_input:
             print("Insufficient balance.")
             print()
-            input("Press enter to return to the main menu.")
+            input("Press Enter to return to the main menu.")
             UserInterface.logged_in_menu()
 
         if tx_input - tx_output - fee > 0:
@@ -203,19 +217,25 @@ class UserInterface:
         if confirm != 'y':
             print()
             print("Transaction cancelled.")
-            input("Press enter to return to the main menu.")
+            input("Press Enter to return to the main menu.")
             UserInterface.logged_in_menu()
 
         private_key = HelperFunctions.get_user_private_key(username)
 
         new_tx = Tx()
-        new_tx.id = random.randint(0, 1000)
+        new_tx.id = random.randint(1, 1000)
         new_tx.add_input(username, tx_input)
         new_tx.add_output(recipient, tx_output)
         new_tx.add_fee(fee)
         new_tx.sign(private_key)
 
         pool.append(new_tx)
+
+        if not new_tx.is_valid():
+            print("Invalid transaction. Please try again.")
+            print()
+            input("Press Enter to return to the main menu.")
+            UserInterface.logged_in_menu()
 
         with open(pool_path, 'wb') as pool_file:
             pickle.dump(pool, pool_file)
@@ -224,16 +244,19 @@ class UserInterface:
             recipient, "You have received a transaction worth " + str(tx_output) + " coins from " + username + " in the pool.")
         HelperFunctions.validate_entire_ledger(False)
         print("Transaction added to the pool!")
-        input("Press enter to return to the main menu.")
+        input("Press Enter to return to the main menu.")
         UserInterface.logged_in_menu()
 
-    def user_explore():
+    def explore_ledger():
         os.system('cls' if os.name == 'nt' else 'clear')
-        HelperFunctions.user_explore_ledger(username)
+        HelperFunctions.view_ledger()
         HelperFunctions.validate_entire_ledger(False)
         print()
         input("Press Enter to return to the main menu.")
-        UserInterface.logged_in_menu()
+        if is_logged_in:
+            UserInterface.logged_in_menu()
+        else:
+            UserInterface.public_menu()
 
     def check_pool():
         os.system('cls' if os.name == 'nt' else 'clear')
@@ -243,13 +266,13 @@ class UserInterface:
             except EOFError:
                 print("The pool is empty.")
                 print()
-                input("Press enter to return to the main menu.")
+                input("Press Enter to return to the main menu.")
                 UserInterface.logged_in_menu()
 
         if len(pool) == 0:
             print("The pool is empty.")
             print()
-            input("Press enter to return to the main menu.")
+            input("Press Enter to return to the main menu.")
             UserInterface.logged_in_menu()
 
         for tx in pool:
@@ -260,16 +283,10 @@ class UserInterface:
             print("Inputs: " + str(tx.inputs) +
                   " | Outputs: " + str(tx.outputs))
             print("Fee: " + str(tx.fee))
-            if not tx.is_valid():
-                print("Transaction + " + tx.id +
-                      " is not valid. Removing from the pool.")
-                pool.remove(tx)
-            else:
-                print("Transaction " + str(tx.id) + " is valid.")
             print()
 
         HelperFunctions.validate_entire_ledger(False)
-        input("Press enter to return to the main menu.")
+        input("Press Enter to return to the main menu.")
         UserInterface.logged_in_menu()
 
     def view_transaction_history():
@@ -280,7 +297,7 @@ class UserInterface:
             except EOFError:
                 print("The ledger is empty.")
                 print()
-                input("Press enter to return to the main menu.")
+                input("Press Enter to return to the main menu.")
                 UserInterface.logged_in_menu()
 
         user_transactions = []
@@ -292,7 +309,7 @@ class UserInterface:
         if len(user_transactions) == 0:
             print("You have no transactions.")
             print()
-            input("Press enter to return to the main menu.")
+            input("Press Enter to return to the main menu.")
             UserInterface.logged_in_menu()
 
         for tx in user_transactions:
@@ -310,7 +327,7 @@ class UserInterface:
             print()
 
         HelperFunctions.validate_entire_ledger(False)
-        input("Press enter to return to the main menu.")
+        input("Press Enter to return to the main menu.")
         UserInterface.logged_in_menu()
 
     def edit_transaction():
@@ -321,7 +338,7 @@ class UserInterface:
             except EOFError:
                 print("The pool is empty.")
                 print()
-                input("Press enter to return to the main menu.")
+                input("Press Enter to return to the main menu.")
                 UserInterface.logged_in_menu()
 
         user_transactions = []
@@ -332,7 +349,7 @@ class UserInterface:
         if len(user_transactions) == 0:
             print("You have no transactions to edit.")
             print()
-            input("Press enter to return to the main menu.")
+            input("Press Enter to return to the main menu.")
             UserInterface.logged_in_menu()
 
         for tx in user_transactions:
@@ -346,11 +363,11 @@ class UserInterface:
             # print("Signatures: ")
             # for s in tx.sigs:
             #     print(s)
-            print("Fee: ".join(str(fee) for fee in tx.fee))
+            print("Fee: " + str(tx.fee))
             print()
 
         choice = input(
-            "Enter the number of the transaction you would like to edit (enter 'r' to return to the main menu): ")
+            "Enter the transaction ID you would like to edit (Enter 'r' to return to the main menu): ")
 
         if choice == 'r':
             UserInterface.logged_in_menu()
@@ -358,66 +375,93 @@ class UserInterface:
         try:
             choice = int(choice)
         except ValueError:
-            print("Invalid choice, please try again.")
             print()
+            input("Invalid choice, please try again")
             UserInterface.edit_transaction()
 
-        if choice < 1 or choice > len(user_transactions):
-            print("Invalid choice, please try again.")
+        tx = None
+        for transaction in user_transactions:
+            if transaction.id == choice:
+                tx = transaction
+                break
+
+        if tx is None:
             print()
+            input("Invalid choice, please try again")
             UserInterface.edit_transaction()
 
-        tx = user_transactions[choice - 1]
-
-        print("Enter 'r' at any time to redo the transaction, exit to return to the main menu.")
+        print("Enter 'r' at any time to redo the transaction, 'exit to return to the main menu.")
         print()
+
         try:
             print("Previous recipient: " + tx.outputs[0][0])
-            recipient = input("Enter the recipient's username: ")
+            recipient = input("Enter new recipient's username: ")
             if recipient == 'r':
                 UserInterface.edit_transaction()
+            if recipient == 'exit':
+                UserInterface.logged_in_menu()
             if not HelperFunctions.check_user_exists(recipient):
                 print("Recipient does not exist.")
                 print()
-                input("Press enter to return to the main menu.")
+                input("Press Enter to return to the main menu.")
+                UserInterface.logged_in_menu()
+            elif recipient == username:
+                print("You cannot send coins to yourself.")
+                print()
+                input("Press Enter to return to the main menu.")
                 UserInterface.logged_in_menu()
             print("Previous input: " + str(tx.inputs[0][1]))
-            tx_input = input("Enter the input amount: ")
+            tx_input = input("Enter new input amount: ")
             if tx_input == 'r':
                 UserInterface.edit_transaction()
+            if tx_input == 'exit':
+                UserInterface.logged_in_menu()
+            if tx_input <= 0:
+                print("Invalid input amount.")
+                print()
+                input("Press Enter to return to the main menu.")
+                UserInterface.logged_in_menu()
             tx_input = float(tx_input)
             print("Previous output: " + str(tx.outputs[0][1]))
-            tx_output = input("Enter the output amount for the recipient: ")
+            tx_output = input("Enter new output amount for the recipient: ")
             if tx_output == 'r':
                 UserInterface.edit_transaction()
+            if tx_output == 'exit':
+                UserInterface.logged_in_menu()
+            if tx_output <= 0:
+                print("Invalid output amount.")
+                print()
+                input("Press Enter to return to the main menu.")
+                UserInterface.logged_in_menu()
             tx_output = float(tx_output)
             print("Previous fee: " + str(tx.fee[0]))
-            fee = input("Enter the transaction fee: ")
+            fee = input("Enter new transaction fee: ")
             if fee == 'r':
                 UserInterface.edit_transaction()
+            if fee == 'exit':
+                UserInterface.logged_in_menu()
+            if fee < 0:
+                print("Invalid fee amount.")
+                print()
+                input("Press Enter to return to the main menu.")
+                UserInterface.logged_in_menu()
             fee = float(fee)
         except ValueError:
-            print("Invalid input. Please enter a valid number.")
+            print("Invalid input. Please Enter a valid number.")
             print()
-            input("Press enter to return to the main menu.")
+            input("Press Enter to return to the main menu.")
             UserInterface.logged_in_menu()
 
         if tx_input < tx_output + fee:
             print("Invalid transaction: input must be greater than output and fee.")
             print()
-            input("Press enter to return to the main menu.")
+            input("Press Enter to return to the main menu.")
             UserInterface.logged_in_menu()
 
-        if recipient == username:
-            print("You cannot send coins to yourself.")
-            print()
-            input("Press enter to return to the main menu.")
-            UserInterface.logged_in_menu()
-
-        if HelperFunctions.check_user_balance(username) < tx_input:
+        if WalletFunctions.check_user_balance(username) < tx_input:
             print("Insufficient balance.")
             print()
-            input("Press enter to return to the main menu.")
+            input("Press Enter to return to the main menu.")
             UserInterface.logged_in_menu()
 
         if tx_input - tx_output - fee > 0:
@@ -430,13 +474,14 @@ class UserInterface:
 
         if confirm != 'y':
             print()
-            print("Transaction cancelled.")
-            input("Press enter to return to the main menu.")
+            print("Transaction edit aborted.")
+            input("Press Enter to return to the main menu.")
             UserInterface.logged_in_menu()
 
         private_key = HelperFunctions.get_user_private_key(username)
 
         new_tx = Tx()
+        new_tx.id = tx.id
         new_tx.add_input(username, tx_input)
         new_tx.add_output(recipient, tx_output)
         new_tx.add_fee(fee)
@@ -445,6 +490,12 @@ class UserInterface:
         pool.remove(tx)
 
         pool.append(new_tx)
+
+        if not new_tx.is_valid():
+            print("Invalid transaction. Please try again.")
+            print()
+            input("Press Enter to return to the main menu.")
+            UserInterface.logged_in_menu()
 
         with open(pool_path, 'wb') as pool_file:
             pickle.dump(pool, pool_file)
@@ -455,7 +506,7 @@ class UserInterface:
         print("Transaction edited.")
         print()
 
-        input("Press enter to return to the main menu.")
+        input("Press Enter to return to the main menu.")
         UserInterface.logged_in_menu()
 
     def cancel_transaction():
@@ -466,7 +517,7 @@ class UserInterface:
             except EOFError:
                 print("The pool is empty.")
                 print()
-                input("Press enter to return to the main menu.")
+                input("Press Enter to return to the main menu.")
                 UserInterface.logged_in_menu()
 
         user_transactions = []
@@ -477,7 +528,7 @@ class UserInterface:
         if len(user_transactions) == 0:
             print("You have no transactions to cancel.")
             print()
-            input("Press enter to return to the main menu.")
+            input("Press Enter to return to the main menu.")
             UserInterface.logged_in_menu()
 
         for tx in user_transactions:
@@ -493,52 +544,48 @@ class UserInterface:
             #     print(s)
             print("Fee: " + ", ".join(str(fee) for fee in tx.fee))
             print()
+
         choice = input(
-            "Enter the ID of the transaction you would like to cancel (enter 'exit' to return to the main menu): ")
+            "Enter the transaction ID you would like to cancel (Enter 'r' to return to the main menu): ")
 
-        if choice == 'exit':
-            UserInterface.logged_in_menu()
-
-        # ask for additional confirmation
-        confirm = input(
-            "Are you sure you want to cancel transaction " + choice + "? (y/n): ")
-
-        if confirm != 'y':
-            print()
-            print("Transaction cancellation cancelled.")
-            input("Press enter to return to the main menu.")
+        if choice == 'r':
             UserInterface.logged_in_menu()
 
         try:
             choice = int(choice)
         except ValueError:
-            print("Invalid choice, please try again.")
             print()
+            input("Invalid choice, please try again")
             UserInterface.cancel_transaction()
 
-        transaction_to_cancel = None
-        for tx in user_transactions:
-            if str(tx.id) == str(choice):
-                transaction_to_cancel = tx
-            continue
+        tx = None
+        for transaction in user_transactions:
+            if transaction.id == choice:
+                tx = transaction
+                break
 
-        if transaction_to_cancel is None:
-            print("Invalid choice, please try again.")
+        if tx is None:
             print()
-            input("Press enter to retry.")
+            input("Invalid choice, please try again")
             UserInterface.cancel_transaction()
 
-        pool.remove(transaction_to_cancel)
+        pool.remove(tx)
+
+        if not tx.is_valid():
+            print("Invalid transaction. Please try again.")
+            print()
+            input("Press Enter to return to the main menu.")
+            UserInterface.logged_in_menu()
 
         with open(pool_path, 'wb') as pool_file:
             pickle.dump(pool, pool_file)
 
         NotificationSystem.create_notification(
-            transaction_to_cancel.outputs[0][0], "A transaction destined for you from " + username + " has been cancelled.")
+            tx.outputs[0][0], "A transaction destined for you from " + username + " has been cancelled.")
         HelperFunctions.validate_entire_ledger(False)
         print("Transaction cancelled.")
         print()
-        input("Press enter to return to the main menu.")
+        input("Press Enter to return to the main menu.")
         UserInterface.logged_in_menu()
 
     def mine_block():
@@ -549,7 +596,7 @@ class UserInterface:
             except EOFError:
                 print("The pool is empty.")
                 print()
-                input("Press enter to return to the main menu.")
+                input("Press Enter to return to the main menu.")
                 UserInterface.logged_in_menu()
 
         pool_file.close()
@@ -557,7 +604,7 @@ class UserInterface:
         if len(pool) == 0:
             print("The pool is empty.")
             print()
-            input("Press enter to return to the main menu.")
+            input("Press Enter to return to the main menu.")
             UserInterface.logged_in_menu()
 
         with open(ledger_path, 'rb') as ledger_file:
@@ -575,7 +622,7 @@ class UserInterface:
                 print(
                     "The previous block does not have enough validations to mine the next block.")
                 print()
-                input("Press enter to return to the main menu.")
+                input("Press Enter to return to the main menu.")
                 UserInterface.logged_in_menu()
 
             time_difference = datetime.datetime.strptime(datetime.datetime.now().strftime(
@@ -584,7 +631,7 @@ class UserInterface:
                 print(
                     "There must be at least 3 minutes between the creation of the last block and the new block.")
                 print()
-                input("Press enter to return to the main menu.")
+                input("Press Enter to return to the main menu.")
                 UserInterface.logged_in_menu()
 
             new_block = TxBlock(previous_block)
@@ -637,6 +684,15 @@ class UserInterface:
 
         print("Total mining reward: " + str(total_fee + 50))
 
+        if len(new_block.data) < 5:
+            print()
+            print("There is/are " + str(len(new_block.data)) +
+                  " transactions in the block.")
+            print("There are not enough transactions to mine a block.")
+            print()
+            input("Press Enter to return to the main menu.")
+            UserInterface.logged_in_menu()
+
         mine_choice = input("Would you like to mine this block? (y/n): ")
 
         if mine_choice != 'y':
@@ -646,7 +702,7 @@ class UserInterface:
         if elapsed_time > 20:
             print("Mining took too long, please try again.")
             print()
-            input("Press enter to return to the main menu.")
+            input("Press Enter to return to the main menu.")
             UserInterface.logged_in_menu()
         print("Mining successful.")
 
@@ -672,7 +728,7 @@ class UserInterface:
                     addr, "A transaction destined for you from " + tx.inputs[0][0] + " has been mined in the ledger. Please verify the new block to receive the coins.")
         print("Block added to the ledger.")
         print()
-        input("Press enter to return to the main menu.")
+        input("Press Enter to return to the main menu.")
         UserInterface.logged_in_menu()
 
     def view_user_keys():

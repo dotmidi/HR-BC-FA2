@@ -28,6 +28,7 @@ class MiscFunctions:
         user = cursor.fetchone()
         return user[3]
 
+
 class CBlock:
     data = None
     previousHash = None
@@ -89,7 +90,7 @@ class TxBlock (CBlock):
         digest.update(bytes(str(self.previousHash), 'utf-8'))
 
         found = False
-        nonce = 0
+        nonce = random.randint(0, 1000000000)
         starttime = time.time()
         timing_variable = 1
         while not found:
@@ -111,7 +112,6 @@ class TxBlock (CBlock):
             sys.stdout.flush()
             nonce += 1
 
-        # Record mined time and compute block hash
         self.blockHash = self.computeHash()
         self.timeOfCreation = datetime.datetime.now().strftime("%d-%m-%Y %H:%M:%S")
         print()
