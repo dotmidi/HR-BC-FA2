@@ -126,7 +126,7 @@ class HelperFunctions:
         # print("You have received 50 GoodCoins for signing up!")
         # print()
 
-        return "User " + username + " registered successfully! You have received 50 GoodCoins for signing up!"
+        return "User " + username + " registered successfully! A transaction of 50 GoodCoins has been added to the pool for you, this will be added to your balance once the block is mined."
 
     def login_user(username, password):
         connection = sqlite3.connect(database_path)
@@ -181,6 +181,8 @@ class HelperFunctions:
                         print("Mined by: " + str(txBlock.minedBy))
                         print("Block hash: " + str(txBlock.blockHash))
                         print("Block has " + str(txBlock.flags) + "/3 flags")
+                        print("Block has been validated by: " + str(txBlock.validatedBy)
+                              if txBlock.validatedBy != [] else "Block has not been validated yet")
                         print("Previous block hash: " +
                               str(txBlock.previousHash))
                         for tx in txBlock.data:
@@ -223,6 +225,8 @@ class HelperFunctions:
                                           str(txBlock.blockHash))
                                     print("Block has " +
                                           str(txBlock.flags) + "/3 flags")
+                                    print("Block has been validated by: " + str(txBlock.validatedBy)
+                                          if txBlock.validatedBy != [] else "Block has not been validated yet")
                                     print("Previous block hash: " +
                                           str(txBlock.previousHash))
                                     for tx in txBlock.data:
@@ -236,13 +240,10 @@ class HelperFunctions:
                                               " | Outputs: " + str(tx.outputs))
                                         print("Fee: " + str(tx.fee))
                                     print()
-                                    input("Press Enter to continue to next block")
-                                    return
                             except ValueError:
                                 print("Invalid block id")
                                 return
                 except EOFError:
-                    print("Block with id " + block_id + " not found")
                     pass
         elif choice == "3":
             with open(ledger_path, 'rb') as ledger_file:
@@ -257,6 +258,8 @@ class HelperFunctions:
                         print("Mined by: " + str(last_block.minedBy))
                         print("Block hash: " + str(last_block.blockHash))
                         print("Block has " + str(last_block.flags) + "/3 flags")
+                        print("Block has been validated by: " + str(last_block.validatedBy)
+                              if last_block.validatedBy != [] else "Block has not been validated yet")
                         print("Previous block hash: " +
                               str(last_block.previousHash))
                         for tx in last_block.data:
@@ -270,8 +273,6 @@ class HelperFunctions:
                                   " | Outputs: " + str(tx.outputs))
                             print("Fee: " + str(tx.fee))
                         print()
-                        input("Press Enter to continue to next block")
-                        return
                 except EOFError:
                     print("No blocks left in the ledger, end of ledger reached")
                     pass
@@ -377,45 +378,69 @@ class AutomaticLoginActions:
         with open(ledger_path, 'rb') as ledger_file:
             try:
                 while True:
-                    block = pickle.load(ledger_file)
-                    for txBlock in block:
-                        print("Checking block " + str(txBlock.id) + "...")
-                        if txBlock.flags >= 3:
-                            print("Block " + str(txBlock.id) +
-                                  " has 3/3 flags, block is fully validated")
-                        elif txBlock.minedBy == username:
-                            print("Block currently has " +
-                                  str(txBlock.flags) + "/3 flags")
-                            print("Block " + str(txBlock.id) +
-                                  " was mined by you, skipping...")
-                        elif not txBlock.is_valid():
-                            txBlock.invalidFlags += 1
-                            print("Block " + str(txBlock.id) +
-                                  " is invalid, adding invalid flag...")
-                            NotificationSystem.create_notification(
-                                txBlock.minedBy, "Block " + str(txBlock.id) + " has been given an invalid flag by " + username)
-                            if txBlock.invalidFlags == 3:
-                                print(
-                                    "Block " + str(txBlock.id) + " has reached 3 invalid flags, removing block from ledger...")
-                                ledger = []
-                                ledger_file.seek(0)
-                                try:
-                                    while True:
-                                        ledger.append(
-                                            pickle.load(ledger_file))
-                                except EOFError:
-                                    pass
-                                ledger.pop()
-                                with open(ledger_path, 'wb') as ledger_filew:
-                                    for block in ledger:
-                                        pickle.dump(block, ledger_filew)
+                    try:
+                        block = pickle.load(ledger_file)
+                        for txBlock in block:
+                            print("Checking block " + str(txBlock.id) + "...")
+                            if txBlock.flags >= 3:
+                                print("Block " + str(txBlock.id) +
+                                    " has 3/3 flags, block is fully validated")
+                            elif txBlock.minedBy == username:
+                                print("Block currently has " +
+                                    str(txBlock.flags) + "/3 flags")
+                                print("Block " + str(txBlock.id) +
+                                    " was mined by you, skipping...")
+                            elif txBlock.validatedBy != [] and username in txBlock.validatedBy:
+                                print("Block currently has " +
+                                    str(txBlock.flags) + "/3 flags")
+                                print("Block " + str(txBlock.id) +
+                                    " has already been validated by you, skipping...")
+                            elif not txBlock.is_valid():
+                                txBlock.invalidFlags += 1
+                                print("Block " + str(txBlock.id) +
+                                    " is invalid, adding invalid flag...")
                                 NotificationSystem.create_notification(
-                                    txBlock.minedBy, "Block " + str(txBlock.id) + " has received 3 invalid flags and has been removed from the ledger")
-                                for tx in txBlock.data:
-                                    for addr, amount in tx.outputs:
-                                        NotificationSystem.create_notification(
-                                            addr, "A block which you have a transaction in has been removed from the ledger")
+                                    txBlock.minedBy, "Block " + str(txBlock.id) + " has been given an invalid flag by " + username)
+                                if txBlock.invalidFlags == 3:
+                                    print(
+                                        "Block " + str(txBlock.id) + " has reached 3 invalid flags, removing block from ledger...")
+                                    ledger = []
+                                    ledger_file.seek(0)
+                                    try:
+                                        while True:
+                                            ledger.append(
+                                                pickle.load(ledger_file))
+                                    except EOFError:
+                                        pass
+                                    ledger.pop()
+                                    with open(ledger_path, 'wb') as ledger_filew:
+                                        for block in ledger:
+                                            pickle.dump(block, ledger_filew)
+                                    NotificationSystem.create_notification(
+                                        txBlock.minedBy, "Block " + str(txBlock.id) + " has received 3 invalid flags and has been removed from the ledger")
+                                    for tx in txBlock.data:
+                                        for addr, amount in tx.outputs:
+                                            NotificationSystem.create_notification(
+                                                addr, "A block which you have a transaction in has been removed from the ledger")
+                                else:
+                                    ledger = []
+                                    ledger_file.seek(0)
+                                    try:
+                                        while True:
+                                            ledger.append(pickle.load(ledger_file))
+                                    except EOFError:
+                                        pass
+                                    ledger.pop()
+                                    ledger.append(block)
+                                    with open(ledger_path, 'wb') as ledger_filew:
+                                        for block in ledger:
+                                            pickle.dump(block, ledger_filew)
                             else:
+                                print("Block " + str(txBlock.id) + " is valid.")
+                                txBlock.flags += 1
+                                txBlock.validatedBy.append(username)
+                                print("Block now has " +
+                                    str(txBlock.flags) + "/3 flags")
                                 ledger = []
                                 ledger_file.seek(0)
                                 try:
@@ -428,63 +453,49 @@ class AutomaticLoginActions:
                                 with open(ledger_path, 'wb') as ledger_filew:
                                     for block in ledger:
                                         pickle.dump(block, ledger_filew)
-                        else:
-                            print("Block " + str(txBlock.id) + " is valid.")
-                            txBlock.flags += 1
-                            print("Block now has " +
-                                  str(txBlock.flags) + "/3 flags")
-                            ledger = []
-                            ledger_file.seek(0)
-                            try:
-                                while True:
-                                    ledger.append(pickle.load(ledger_file))
-                            except EOFError:
-                                pass
-                            ledger.pop()
-                            ledger.append(block)
-                            with open(ledger_path, 'wb') as ledger_filew:
-                                for block in ledger:
-                                    pickle.dump(block, ledger_filew)
-                            NotificationSystem.create_notification(
-                                txBlock.minedBy, "Block " + str(txBlock.id) + " has been validated by " + username)
-                            if txBlock.flags == 3 and txBlock.pendingReward != []:
-                                tx = Tx(type=REWARD)
-                                tx.add_input("MINING REWARD", 50)
-                                tx.add_input("TRANSACTION FEES",
-                                             txBlock.pendingReward[0])
-                                tx.add_output(
-                                    txBlock.pendingReward[1], 50 + txBlock.pendingReward[0])
-                                tx.id = random.randint(0, 1000)
-                                if not tx.is_valid():
-                                    raise Exception("Invalid transaction")
-                                with open(pool_path, 'rb') as pool_file:
-                                    try:
-                                        pool = pickle.load(pool_file)
-                                    except EOFError:
-                                        pool = []
-                                pool.append(tx)
-                                with open(pool_path, 'wb') as pool_filew:
-                                    pickle.dump(pool, pool_filew)
-                                txBlock.pendingReward = []
-                                ledger = []
-                                ledger_file.seek(0)
-                                try:
-                                    while True:
-                                        ledger.append(
-                                            pickle.load(ledger_file))
-                                except EOFError:
-                                    pass
-                                ledger.pop()
-                                ledger.append(block)
-                                with open(ledger_path, 'wb') as ledger_filew:
-                                    for block in ledger:
-                                        pickle.dump(block, ledger_filew)
-                                for tx in txBlock.data:
-                                    for addr, amount in tx.outputs:
-                                        NotificationSystem.create_notification(
-                                            addr, "A block which you have a transaction in has been fully validated.")
                                 NotificationSystem.create_notification(
-                                    txBlock.minedBy, "Block " + str(txBlock.id) + " has been fully validated and your mining reward has been added to the pool")
+                                    txBlock.minedBy, "Block " + str(txBlock.id) + " has been validated by " + username)
+                                if txBlock.flags == 3 and txBlock.pendingReward != []:
+                                    tx = Tx(type=REWARD)
+                                    tx.add_input("MINING REWARD", 50)
+                                    tx.add_input("TRANSACTION FEES",
+                                                txBlock.pendingReward[0])
+                                    tx.add_output(
+                                        txBlock.pendingReward[1], 50 + txBlock.pendingReward[0])
+                                    tx.id = random.randint(0, 1000)
+                                    if not tx.is_valid():
+                                        raise Exception("Invalid transaction")
+                                    with open(pool_path, 'rb') as pool_file:
+                                        try:
+                                            pool = pickle.load(pool_file)
+                                        except EOFError:
+                                            pool = []
+                                    pool.append(tx)
+                                    with open(pool_path, 'wb') as pool_filew:
+                                        pickle.dump(pool, pool_filew)
+                                    txBlock.pendingReward = []
+                                    ledger = []
+                                    ledger_file.seek(0)
+                                    try:
+                                        while True:
+                                            ledger.append(
+                                                pickle.load(ledger_file))
+                                    except EOFError:
+                                        pass
+                                    ledger.pop()
+                                    ledger.append(block)
+                                    with open(ledger_path, 'wb') as ledger_filew:
+                                        for block in ledger:
+                                            pickle.dump(block, ledger_filew)
+                                    for tx in txBlock.data:
+                                        for addr, amount in tx.outputs:
+                                            NotificationSystem.create_notification(
+                                                addr, "A block which you have a transaction in has been fully validated.")
+                                    NotificationSystem.create_notification(
+                                        txBlock.minedBy, "Block " + str(txBlock.id) + " has been fully validated and your mining reward has been added to the pool")
+                    except pickle.UnpicklingError:
+                        # print("End of ledger reached, no more blocks to check")
+                        break
             except EOFError:
                 print("End of ledger reached, no more blocks to check")
                 pass
@@ -576,9 +587,11 @@ class NotificationSystem:
                     block = pickle.load(ledger_file)
                     for txBlock in block:
                         for tx in txBlock.data:
-                            if tx.type == REWARD:
+                            if tx.inputs[0][0] == "SIGN UP REWARD":
                                 for addr, amount in tx.outputs:
                                     total_balance += amount
+                            elif tx.inputs[0][0] == "MINING REWARD":
+                                total_balance += 50
             except EOFError:
                 pass
         print("Total GoodCoins in circulation: " + str(total_balance))
@@ -612,13 +625,14 @@ class WalletFunctions:
                 while True:
                     block = pickle.load(ledger_file)
                     for txBlock in block:
-                        for tx in txBlock.data:
-                            for addr, amount in tx.outputs:
-                                if addr == username:
-                                    balance += amount
-                            for addr, amount in tx.inputs:
-                                if addr == username:
-                                    balance -= amount
+                        if txBlock.flags == 3:
+                            for tx in txBlock.data:
+                                for addr, amount in tx.outputs:
+                                    if addr == username:
+                                        balance += amount
+                                for addr, amount in tx.inputs:
+                                    if addr == username:
+                                        balance -= amount
             except EOFError:
                 pass
 
@@ -649,13 +663,14 @@ class WalletFunctions:
                 while True:
                     block = pickle.load(ledger_file)
                     for txBlock in block:
-                        for tx in txBlock.data:
-                            for addr, amount in tx.outputs:
-                                if addr == username:
-                                    balance += amount
-                            for addr, amount in tx.inputs:
-                                if addr == username:
-                                    balance -= amount
+                        if txBlock.flags == 3:
+                            for tx in txBlock.data:
+                                for addr, amount in tx.outputs:
+                                    if addr == username:
+                                        balance += amount
+                                for addr, amount in tx.inputs:
+                                    if addr == username:
+                                        balance -= amount
             except EOFError:
                 pass
 
@@ -678,6 +693,24 @@ class WalletFunctions:
             for addr, amount in tx.inputs:
                 if addr == username:
                     pending_balance -= amount
+
+        ledger_path = os.path.join(os.path.dirname(
+            os.path.dirname(__file__)), 'data', 'ledger.dat')
+
+        with open(ledger_path, 'rb') as ledger_file:
+            try:
+                block = pickle.load(ledger_file)
+                for txBlock in block:
+                    if txBlock.flags < 3:
+                        for tx in txBlock.data:
+                            for addr, amount in tx.outputs:
+                                if addr == username:
+                                    pending_balance += amount
+                            for addr, amount in tx.inputs:
+                                if addr == username:
+                                    pending_balance -= amount
+            except EOFError:
+                pass
 
         cursor.close()
         connection.close()

@@ -121,6 +121,7 @@ class UserInterface:
         print("Sign Up")
         print()
         username = input("Enter your username: ")
+        print("Password must have: length > 5, 1 uppercase, 1 digit, 1 special character")
         password = input("Enter your password: ")
         print(HelperFunctions.register_user(username, password))
         HelperFunctions.validate_entire_ledger(False)
@@ -411,19 +412,18 @@ class UserInterface:
                 input("Press Enter to return to the main menu.")
                 UserInterface.logged_in_menu()
             print("Previous input: " + str(tx.inputs[0][1]))
-            tx_input = input("Enter new input amount: ")
+            tx_input = float(input("Enter new input amount: "))
             if tx_input == 'r':
                 UserInterface.edit_transaction()
-            if tx_input == 'exit':
+            if tx_input == "exit":
                 UserInterface.logged_in_menu()
             if tx_input <= 0:
                 print("Invalid input amount.")
                 print()
                 input("Press Enter to return to the main menu.")
                 UserInterface.logged_in_menu()
-            tx_input = float(tx_input)
             print("Previous output: " + str(tx.outputs[0][1]))
-            tx_output = input("Enter new output amount for the recipient: ")
+            tx_output = float(input("Enter new output amount for the recipient: "))
             if tx_output == 'r':
                 UserInterface.edit_transaction()
             if tx_output == 'exit':
@@ -433,9 +433,8 @@ class UserInterface:
                 print()
                 input("Press Enter to return to the main menu.")
                 UserInterface.logged_in_menu()
-            tx_output = float(tx_output)
             print("Previous fee: " + str(tx.fee[0]))
-            fee = input("Enter new transaction fee: ")
+            fee = float(input("Enter new transaction fee: "))
             if fee == 'r':
                 UserInterface.edit_transaction()
             if fee == 'exit':
@@ -445,7 +444,6 @@ class UserInterface:
                 print()
                 input("Press Enter to return to the main menu.")
                 UserInterface.logged_in_menu()
-            fee = float(fee)
         except ValueError:
             print("Invalid input. Please Enter a valid number.")
             print()
@@ -641,13 +639,14 @@ class UserInterface:
         reward_tx_count = 0
         normal_tx_count = 0
         for tx in pool:
-            if reward_tx_count < 5 and tx.outputs[0][0] == "MINING REWARD":
+            if reward_tx_count < 5 and tx.inputs[0][0] == "MINING REWARD":
                 new_block.addTx(tx)
                 reward_tx_count += 1
 
         for tx in pool:
             if reward_tx_count < 5 and tx.type == REWARD:
-                new_block.addTx(tx)
+                if tx not in new_block.data:
+                    new_block.addTx(tx)
                 reward_tx_count += 1
 
         sorted_pool = sorted(

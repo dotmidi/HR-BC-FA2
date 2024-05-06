@@ -90,7 +90,7 @@ class TxBlock (CBlock):
         digest.update(bytes(str(self.previousHash), 'utf-8'))
 
         found = False
-        nonce = random.randint(0, 1000000000)
+        nonce = random.randint(0, 1000000)
         starttime = time.time()
         timing_variable = 1
         while not found:
