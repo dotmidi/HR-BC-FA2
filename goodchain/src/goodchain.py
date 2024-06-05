@@ -1,5 +1,6 @@
 from helperFunctions import HelperFunctions, database_path, ledger_path, pool_path, NotificationSystem, AutomaticLoginActions, WalletFunctions
 from dataStructures import *
+from synchronization import *
 import os
 import time
 import datetime
@@ -14,7 +15,11 @@ os.system('cls' if os.name == 'nt' else 'clear')
 
 is_logged_in = False
 username = None
+HOST = 'localhost'
+PORT = 12345
+PORT2 = 12346
 
+sync = Synchronization(HOST, PORT, PORT2)
 
 class UserInterface:
     def __init__(self):
@@ -57,6 +62,8 @@ class UserInterface:
         print("User currently logged in: " + username)
         if first_login:
             AutomaticLoginActions.main(username)
+            print("Establishing connection to the network...")
+            sync.start_listening()
         NotificationSystem.read_notifications(username)
         WalletFunctions.print_user_balance(username)
         NotificationSystem.print_blockchain_info()
@@ -423,7 +430,8 @@ class UserInterface:
                 input("Press Enter to return to the main menu.")
                 UserInterface.logged_in_menu()
             print("Previous output: " + str(tx.outputs[0][1]))
-            tx_output = float(input("Enter new output amount for the recipient: "))
+            tx_output = float(
+                input("Enter new output amount for the recipient: "))
             if tx_output == 'r':
                 UserInterface.edit_transaction()
             if tx_output == 'exit':
