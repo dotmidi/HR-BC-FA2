@@ -21,6 +21,7 @@ PORT2 = 12346
 
 sync = Synchronization(HOST, PORT, PORT2)
 
+
 class UserInterface:
     def __init__(self):
         pass
@@ -63,7 +64,8 @@ class UserInterface:
         if first_login:
             AutomaticLoginActions.main(username)
             print("Establishing connection to the network...")
-            sync.start_listening()
+            sync.start_listening(username)
+            time.sleep(1)
         NotificationSystem.read_notifications(username)
         WalletFunctions.print_user_balance(username)
         NotificationSystem.print_blockchain_info()
@@ -756,6 +758,7 @@ class UserInterface:
         global is_logged_in
         global username
 
+        sync.stop_listening(username)
         os.system('cls' if os.name == 'nt' else 'clear')
         print("You have been logged out.")
         print()

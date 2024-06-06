@@ -1,4 +1,6 @@
 * [X] Figuring out how to assign 2 different nodes without changing variables
+* [X] Not allow 1 user to be connected from 2 different nodes
+* [X] Ending litening gracefully
 * [ ] Sending
   * [ ] Items (Blocks, Tx, etc.)
 * [ ] Receiving
