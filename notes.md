@@ -1,8 +1,13 @@
 * [X] Figuring out how to assign 2 different nodes without changing variables
 * [X] Not allow 1 user to be connected from 2 different nodes
 * [X] Ending litening gracefully
-* [ ] Sending
+* [X] Sending
+  * [X] Simple messages
   * [ ] Items (Blocks, Tx, etc.)
-* [ ] Receiving
+* [X] Receiving
+  * [X] Simple messages
   * [ ] Items (Blocks,Tx, etc.)
-* [ ] FIX THE ERROR FROM THE PREVIOUS SHOWCASE, THE BALANCE SHOULD BE LOWER WHEN MAKING A TRANSACTION IMMEDIATLEY, NOT BE SHOWN AS USABLE
+* [ ] Sync on-demand
+  * [ ] When both nodes are occupied, they sync with each other. Pool and ledger files are sent to each other, they both check validity and come to a consensus.
+* [ ] ISSUE: Who sends the newly registered user' transactions over the network?
+* [X] FIX THE ERROR FROM THE PREVIOUS SHOWCASE, THE BALANCE SHOULD BE LOWER WHEN MAKING A TRANSACTION IMMEDIATLEY, NOT BE SHOWN AS USABLE

@@ -384,21 +384,21 @@ class AutomaticLoginActions:
                             print("Checking block " + str(txBlock.id) + "...")
                             if txBlock.flags >= 3:
                                 print("Block " + str(txBlock.id) +
-                                    " has 3/3 flags, block is fully validated")
+                                      " has 3/3 flags, block is fully validated")
                             elif txBlock.minedBy == username:
                                 print("Block currently has " +
-                                    str(txBlock.flags) + "/3 flags")
+                                      str(txBlock.flags) + "/3 flags")
                                 print("Block " + str(txBlock.id) +
-                                    " was mined by you, skipping...")
+                                      " was mined by you, skipping...")
                             elif txBlock.validatedBy != [] and username in txBlock.validatedBy:
                                 print("Block currently has " +
-                                    str(txBlock.flags) + "/3 flags")
+                                      str(txBlock.flags) + "/3 flags")
                                 print("Block " + str(txBlock.id) +
-                                    " has already been validated by you, skipping...")
+                                      " has already been validated by you, skipping...")
                             elif not txBlock.is_valid():
                                 txBlock.invalidFlags += 1
                                 print("Block " + str(txBlock.id) +
-                                    " is invalid, adding invalid flag...")
+                                      " is invalid, adding invalid flag...")
                                 NotificationSystem.create_notification(
                                     txBlock.minedBy, "Block " + str(txBlock.id) + " has been given an invalid flag by " + username)
                                 if txBlock.invalidFlags == 3:
@@ -427,7 +427,8 @@ class AutomaticLoginActions:
                                     ledger_file.seek(0)
                                     try:
                                         while True:
-                                            ledger.append(pickle.load(ledger_file))
+                                            ledger.append(
+                                                pickle.load(ledger_file))
                                     except EOFError:
                                         pass
                                     ledger.pop()
@@ -440,7 +441,7 @@ class AutomaticLoginActions:
                                 txBlock.flags += 1
                                 txBlock.validatedBy.append(username)
                                 print("Block now has " +
-                                    str(txBlock.flags) + "/3 flags")
+                                      str(txBlock.flags) + "/3 flags")
                                 ledger = []
                                 ledger_file.seek(0)
                                 try:
@@ -459,7 +460,7 @@ class AutomaticLoginActions:
                                     tx = Tx(type=REWARD)
                                     tx.add_input("MINING REWARD", 50)
                                     tx.add_input("TRANSACTION FEES",
-                                                txBlock.pendingReward[0])
+                                                 txBlock.pendingReward[0])
                                     tx.add_output(
                                         txBlock.pendingReward[1], 50 + txBlock.pendingReward[0])
                                     tx.id = random.randint(0, 1000)
@@ -636,9 +637,24 @@ class WalletFunctions:
             except EOFError:
                 pass
 
+        pool_path = os.path.join(os.path.dirname(
+            os.path.dirname(__file__)), 'data', 'pool.dat')
+
+        with open(pool_path, 'rb') as pool_file:
+            try:
+                pool = pickle.load(pool_file)
+            except EOFError:
+                pool = []
+
+        usable_balance = balance
+        for tx in pool:
+            for addr, amount in tx.inputs:
+                if addr == username:
+                    usable_balance -= amount
+
         cursor.close()
         connection.close()
-        return balance
+        return usable_balance
 
     def print_user_balance(username):
         connection = sqlite3.connect(database_path)
@@ -674,7 +690,22 @@ class WalletFunctions:
             except EOFError:
                 pass
 
-        print(f"Current balance for {username}: {balance:.1f} GoodCoins")
+        pool_path = os.path.join(os.path.dirname(
+            os.path.dirname(__file__)), 'data', 'pool.dat')
+
+        with open(pool_path, 'rb') as pool_file:
+            try:
+                pool = pickle.load(pool_file)
+            except EOFError:
+                pool = []
+
+        usable_balance = balance
+        for tx in pool:
+            for addr, amount in tx.inputs:
+                if addr == username:
+                    usable_balance -= amount
+
+        print(f"Usable balance for {username}: {usable_balance:.1f} GoodCoins")
 
         pool_path = os.path.join(os.path.dirname(
             os.path.dirname(__file__)), 'data', 'pool.dat')

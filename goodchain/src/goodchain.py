@@ -19,7 +19,7 @@ HOST = 'localhost'
 PORT = 12345
 PORT2 = 12346
 
-sync = Synchronization(HOST, PORT, PORT2)
+conn_threads = ListeningThread(HOST, PORT, PORT2)
 
 
 class UserInterface:
@@ -64,7 +64,7 @@ class UserInterface:
         if first_login:
             AutomaticLoginActions.main(username)
             print("Establishing connection to the network...")
-            sync.start_listening(username)
+            conn_threads.start_listening(username)
             time.sleep(1)
         NotificationSystem.read_notifications(username)
         WalletFunctions.print_user_balance(username)
@@ -93,7 +93,8 @@ class UserInterface:
             '7': UserInterface.mine_block,
             '8': UserInterface.view_user_keys,
             '9': UserInterface.validate_entire_ledger,
-            '10': UserInterface.logout
+            '10': UserInterface.logout,
+            '100': ListeningThread.send_message(conn_threads, username)
         }
 
         def default():
@@ -107,6 +108,9 @@ class UserInterface:
             switch.get(choice, default)()
         except TypeError:
             print("Invalid choice, please try again.")
+            print()
+            input("Press Enter to return to the main menu.")
+            UserInterface.logged_in_menu()
 
     def login():
         global is_logged_in
@@ -758,7 +762,7 @@ class UserInterface:
         global is_logged_in
         global username
 
-        sync.stop_listening(username)
+        conn_threads.stop_listening(username)
         os.system('cls' if os.name == 'nt' else 'clear')
         print("You have been logged out.")
         print()
