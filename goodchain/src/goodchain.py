@@ -94,7 +94,7 @@ class UserInterface:
             '8': UserInterface.view_user_keys,
             '9': UserInterface.validate_entire_ledger,
             '10': UserInterface.logout,
-            '100': ListeningThread.send_message(conn_threads, username)
+            '999': UserInterface.sendMessage
         }
 
         def default():
@@ -769,6 +769,13 @@ class UserInterface:
         is_logged_in = False
         username = None
         UserInterface.public_menu()
+        
+    def sendMessage():
+        ListeningThread.send_message(conn_threads, username)
+        print("Message sent!")
+        print()
+        input("Press Enter to return to the main menu.")
+        UserInterface.logged_in_menu()
 
 
 UserInterface.public_menu()
