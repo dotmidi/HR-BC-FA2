@@ -99,9 +99,9 @@ class UserInterface:
 
         def default():
             os.system('cls' if os.name == 'nt' else 'clear')
-            print("Invalid choice, please try again.")
-            print()
-            input("Press Enter to return to the main menu.")
+            # print("Invalid choice, please try again.")
+            # print()
+            # input("Press Enter to return to the main menu.")
             UserInterface.logged_in_menu()
 
         try:
@@ -245,18 +245,21 @@ class UserInterface:
 
         pool.append(new_tx)
 
+        # send the newly created transaction over the network
+        ListeningThread.send_transaction(conn_threads, new_tx)
+
         if not new_tx.is_valid():
             print("Invalid transaction. Please try again.")
             print()
             input("Press Enter to return to the main menu.")
             UserInterface.logged_in_menu()
 
-        with open(pool_path, 'wb') as pool_file:
-            pickle.dump(pool, pool_file)
+        # with open(pool_path, 'wb') as pool_file:
+        #     pickle.dump(pool, pool_file)
 
-        NotificationSystem.create_notification(
-            recipient, "You have received a transaction worth " + str(tx_output) + " coins from " + username + " in the pool.")
-        HelperFunctions.validate_entire_ledger(False)
+        # NotificationSystem.create_notification(
+        #     recipient, "You have received a transaction worth " + str(tx_output) + " coins from " + username + " in the pool.")
+        # HelperFunctions.validate_entire_ledger(False)
         print("Transaction added to the pool!")
         input("Press Enter to return to the main menu.")
         UserInterface.logged_in_menu()
@@ -724,21 +727,24 @@ class UserInterface:
         new_block.pendingReward.append(username)
 
         ledger.append(new_block)
+        
+        # send the new block over the network
+        ListeningThread.send_block(conn_threads, new_block)
 
-        fh = open(ledger_path, 'wb')
-        pickle.dump(ledger, fh)
-        fh.close()
+        # fh = open(ledger_path, 'wb')
+        # pickle.dump(ledger, fh)
+        # fh.close()
 
-        pool = pool[reward_tx_count + normal_tx_count:]
+        # pool = pool[reward_tx_count + normal_tx_count:]
 
-        fh = open(pool_path, 'wb')
-        pickle.dump(pool, fh)
-        fh.close()
+        # fh = open(pool_path, 'wb')
+        # pickle.dump(pool, fh)
+        # fh.close()
 
-        for tx in new_block.data:
-            for addr, amount in tx.outputs:
-                NotificationSystem.create_notification(
-                    addr, "A transaction destined for you from " + tx.inputs[0][0] + " has been mined in the ledger. Please verify the new block to receive the coins.")
+        # for tx in new_block.data:
+        #     for addr, amount in tx.outputs:
+        #         NotificationSystem.create_notification(
+        #             addr, "A transaction destined for you from " + tx.inputs[0][0] + " has been mined in the ledger. Please verify the new block to receive the coins.")
         print("Block added to the ledger.")
         print()
         input("Press Enter to return to the main menu.")
@@ -769,7 +775,7 @@ class UserInterface:
         is_logged_in = False
         username = None
         UserInterface.public_menu()
-        
+
     def sendMessage():
         ListeningThread.send_message(conn_threads, username)
         print("Message sent!")

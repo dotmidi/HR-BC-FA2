@@ -2,7 +2,9 @@ import socket
 import threading
 import os
 import json
+import pickle
 from helperFunctions import *
+from dataStructures import *
 
 connected_users_path = os.path.join(os.path.dirname(
     os.path.dirname(__file__)), 'data', 'connected_users.json')
@@ -65,12 +67,87 @@ class ListeningThread:
                 try:
                     conn, addr = s.accept()
                     with conn:
+                        os.system('cls' if os.name == 'nt' else 'clear')
+                        print("Received connection")
                         print('Connected by', addr)
                         while True:
-                            data = conn.recv(1024)
+                            data = conn.recv(8192)
+                            # if the header is header = b'TRANSACTION', then it is a transaction
+                            # print the size of the data received
+                            print(f"Received data size: {len(data)}")
+                            if data[:11] == b'TRANSACTION':
+                                transaction = pickle.loads(data[11:])
+                                print(f"Received transaction")
+                                # validate the transaction
+                                if Tx.is_valid(transaction):
+                                    print("Transaction is valid")
+                                    # open the transaction pool file and append the transaction to it
+                                    with open(pool_path, 'rb') as pool_file:
+                                        pool = pickle.load(pool_file)
+                                        pool.append(transaction)
+
+                                    with open(pool_path, 'wb') as pool_file:
+                                        pickle.dump(pool, pool_file)
+
+                                    print("Transaction added to the pool")
+                                    # go back to the main menu but keep the connection open
+                                    print()
+                                    input(
+                                        "Press Enter to return to the main menu...")
+                                else:
+                                    print(
+                                        "Transaction is invalid, discarding transaction")
+                                    print()
+                                    input("Press Enter to continue...")
+                            # if the header is head = b'TXBLOCK', then it is a block
+                            elif data[:7] == b'TXBLOCK':
+                                block = pickle.loads(data[7:])
+                                print(f"Received block: {block}")
+                                # validate the block
+                                if TxBlock.is_valid(block):
+                                    print("Block is valid")
+                                    # open the ledger file and append the block to it
+                                    with open(ledger_path, 'rb') as ledger_file:
+                                        ledger = pickle.load(ledger_file)
+                                        ledger.append(block)
+
+                                    with open(ledger_path, 'wb') as ledger_file:
+                                        pickle.dump(ledger, ledger_file)
+
+                                    print("Block added to the ledger")
+                                    # go back to the main menu but keep the connection open
+                                    print()
+                                    input(
+                                        "Press Enter to return to the main menu...")
+                                else:
+                                    print("Block is invalid, discarding block")
+                                    print()
+                                    input("Press Enter to continue...")
+                            # if the header is header = b'POOL', then it is a pool
+                            elif data[:4] == b'POOL':
+                                pool = pickle.loads(data[4:])
+                                print(f"Received pool: {pool}")
+                                # validate the pool
+                                for transaction in pool:
+                                    if not Tx.is_valid(transaction):
+                                        print("Pool is invalid")
+                                        return
+                                print("Pool is valid")
+                                return
+                            # if the header is header = b'LEDGER', then it is a ledger
+                            elif data[:6] == b'LEDGER':
+                                ledger = pickle.loads(data[6:])
+                                print(f"Received ledger: {ledger}")
+                                # validate the ledger
+                                if Ledger.is_valid(ledger):
+                                    print("Ledger is valid")
+                                    return
+                                else:
+                                    print("Ledger is invalid")
+                                    return
                             if not data:
                                 break
-                            print('Received', repr(data))
+                            # print('Received data')
                             if data == self.STOP_MESSAGE:
                                 print('Stop message received. Stopping listener.')
                                 return
@@ -117,6 +194,34 @@ class ListeningThread:
             s.connect((self.host, self.other_port))
             s.sendall(message.encode())
             print(f"Sent message: {message}")
+
+    def send_transaction(self, transaction):
+        header = b'TRANSACTION'
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+            s.connect((self.host, self.other_port))
+            s.sendall(header + pickle.dumps(transaction))
+            print(f"Sent transaction: {transaction}")
+
+    def send_block(self, block):
+        header = b'TXBLOCK'
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+            s.connect((self.host, self.other_port))
+            s.sendall(header + pickle.dumps(block))
+            print(f"Sent block: {block}")
+
+    def send_pool(self, pool):
+        header = b'POOL'
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+            s.connect((self.host, self.other_port))
+            s.sendall(header + pickle.dumps(pool))
+            print(f"Sent pool: {pool}")
+
+    def send_ledger(self, ledger):
+        header = b'LEDGER'
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+            s.connect((self.host, self.other_port))
+            s.sendall(header + pickle.dumps(ledger))
+            print(f"Sent ledger: {ledger}")
 
 # class Synchronization:
 #     def sync_on_demand(self, host, port, other_port, username, ledger, pool):
