@@ -12,6 +12,7 @@ connected_users_path = os.path.join(os.path.dirname(
 
 class ListeningThread:
     STOP_MESSAGE = b'STOP_LISTENING'
+    SAME_USER_MESSAGE = b'SAME_USER'
 
     def __init__(self, host, port, other_port):
         self.host = host
@@ -69,7 +70,6 @@ class ListeningThread:
                 try:
                     conn, addr = s.accept()
                     with conn:
-                        
                         os.system('cls' if os.name == 'nt' else 'clear')
                         print("Received connection")
                         print('Connected by', addr)
@@ -83,16 +83,25 @@ class ListeningThread:
                                 # if the other_username is equal to self.username, print a message saying the user cannot connect to themselves and exit
                                 other_username = data[9:].decode()
                                 if other_username == self.username:
-                                    print("Cannot connect to yourself. Exiting...")
+                                    os.system('cls' if os.name ==
+                                              'nt' else 'clear')
+                                    print(
+                                        "Cannot connect to yourself. Exiting...")
                                     # send a stop message to the other node
-                                    self.send_stop_message()
+                                    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+                                        s.connect((self.host, self.other_port))
+                                        s.sendall(self.SAME_USER_MESSAGE)
                                     # exit the program
-                                    os.system('cls' if os.name == 'nt' else 'clear')
                                     exit()
                                     break
                                 # if the other_username is not equal to self.username, print a message saying the user is connected to the other user
                                 print(f"Connected to user: {other_username}")
                             print(f"Received data size: {len(data)}")
+                            if data == self.SAME_USER_MESSAGE:
+                                print(
+                                    "Cannot connect to yourself. Exiting...")
+                                exit()
+                                break
                             if data[:11] == b'TRANSACTION':
                                 transaction = pickle.loads(data[11:])
                                 print(f"Received transaction")
@@ -297,5 +306,5 @@ class ListeningThread:
                 f"Total size: {len(pickle.dumps(ledger)) + len(pickle.dumps(pool))}")
             s.sendall(ledger_header + pickle.dumps(ledger) +
                       pool_header + pickle.dumps(pool))
-            print(f"Sent ledger: {ledger}")
-            print(f"Sent pool: {pool}")
+            # print(f"Sent ledger: {ledger}")
+            # print(f"Sent pool: {pool}")
