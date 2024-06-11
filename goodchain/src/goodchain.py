@@ -89,7 +89,11 @@ class UserInterface:
         print("9. Check Ledger Validity")
         print("10. Log out")
         print()
-        choice = input("Enter your choice: ")
+        try:
+            choice = input("Enter your choice: ")
+        except ValueError:
+            os.system('cls' if os.name == 'nt' else 'clear')
+            exit()
 
         switch = {
             '1': UserInterface.transfer_coins,

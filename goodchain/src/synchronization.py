@@ -21,6 +21,7 @@ class ListeningThread:
         self.user_file = connected_users_path
         self.lock = threading.Lock()
         self.server_thread = None
+        self.username = None
 
         if not os.path.exists(os.path.dirname(self.user_file)):
             os.makedirs(os.path.dirname(self.user_file))
@@ -30,6 +31,7 @@ class ListeningThread:
                 json.dump({}, f)
 
     def start_listening(self, username):
+        self.username = username
         if self._allocate_user(username):
             self.server_thread = threading.Thread(
                 target=self._listen, name="listen_thread", args=(username,))
@@ -67,6 +69,7 @@ class ListeningThread:
                 try:
                     conn, addr = s.accept()
                     with conn:
+                        
                         os.system('cls' if os.name == 'nt' else 'clear')
                         print("Received connection")
                         print('Connected by', addr)
@@ -74,6 +77,21 @@ class ListeningThread:
                             data = conn.recv(8192)
                             # if the header is header = b'TRANSACTION', then it is a transaction
                             # print the size of the data received
+                            # if the header is header = b'HANDSHAKE', then it is a handshake
+                            if data[:9] == b'HANDSHAKE':
+                                # the other node sends the username after the handshake header, so we can get the username
+                                # if the other_username is equal to self.username, print a message saying the user cannot connect to themselves and exit
+                                other_username = data[9:].decode()
+                                if other_username == self.username:
+                                    print("Cannot connect to yourself. Exiting...")
+                                    # send a stop message to the other node
+                                    self.send_stop_message()
+                                    # exit the program
+                                    os.system('cls' if os.name == 'nt' else 'clear')
+                                    exit()
+                                    break
+                                # if the other_username is not equal to self.username, print a message saying the user is connected to the other user
+                                print(f"Connected to user: {other_username}")
                             print(f"Received data size: {len(data)}")
                             if data[:11] == b'TRANSACTION':
                                 transaction = pickle.loads(data[11:])
@@ -252,6 +270,12 @@ class ListeningThread:
             print(f"Sent ledger: {ledger}")
 
     def sync_pool_ledger(self):
+        # send handshake message
+        header = b'HANDSHAKE'
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+            s.connect((self.host, self.other_port))
+            s.sendall(header + self.username.encode())
+            print(f"Sent handshake message")
         # send in a single message, first the ledger and then the pool. should be separated by a delimiter
         # get the ledger and pool
         ledger = []
