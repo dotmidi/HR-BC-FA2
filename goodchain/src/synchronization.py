@@ -4,7 +4,7 @@ import os
 import json
 import pickle
 from helperFunctions import *
-from dataStructures import *
+from dataStructures import Tx, TxBlock
 
 connected_users_path = os.path.join(os.path.dirname(
     os.path.dirname(__file__)), 'data', 'connected_users.json')
@@ -75,40 +75,22 @@ class ListeningThread:
                         print('Connected by', addr)
                         while True:
                             data = conn.recv(8192)
-                            # if the header is header = b'TRANSACTION', then it is a transaction
-                            # print the size of the data received
-                            # if the header is header = b'HANDSHAKE', then it is a handshake
-                            if data[:9] == b'HANDSHAKE':
-                                # the other node sends the username after the handshake header, so we can get the username
-                                # if the other_username is equal to self.username, print a message saying the user cannot connect to themselves and exit
-                                other_username = data[9:].decode()
-                                if other_username == self.username:
-                                    os.system('cls' if os.name ==
-                                              'nt' else 'clear')
-                                    print(
-                                        "Cannot connect to yourself. Exiting...")
-                                    # send a stop message to the other node
-                                    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-                                        s.connect((self.host, self.other_port))
-                                        s.sendall(self.SAME_USER_MESSAGE)
-                                    # exit the program
-                                    exit()
-                                    break
-                                # if the other_username is not equal to self.username, print a message saying the user is connected to the other user
-                                print(f"Connected to user: {other_username}")
+
+                            if not data:
+                                break
+
                             print(f"Received data size: {len(data)}")
+
                             if data == self.SAME_USER_MESSAGE:
-                                print(
-                                    "Cannot connect to yourself. Exiting...")
+                                print("Cannot connect to yourself. Exiting...")
                                 exit()
                                 break
-                            if data[:11] == b'TRANSACTION':
-                                transaction = pickle.loads(data[11:])
+
+                            if data[:18] == b'CREATE_TRANSACTION':
+                                transaction = pickle.loads(data[18:])
                                 print(f"Received transaction")
-                                # validate the transaction
                                 if Tx.is_valid(transaction):
                                     print("Transaction is valid")
-                                    # open the transaction pool file and append the transaction to it
                                     with open(pool_path, 'rb') as pool_file:
                                         pool = pickle.load(pool_file)
                                         pool.append(transaction)
@@ -117,80 +99,84 @@ class ListeningThread:
                                         pickle.dump(pool, pool_file)
 
                                     print("Transaction added to the pool")
-                                    # go back to the main menu but keep the connection open
-                                    print()
-                                    input(
-                                        "Press Enter to return to the main menu...")
                                 else:
                                     print(
                                         "Transaction is invalid, discarding transaction")
-                                    print()
-                                    input("Press Enter to continue...")
-                            # if the header is head = b'TXBLOCK', then it is a block
+
+                            elif data[:16] == b'EDIT_TRANSACTION':
+                                transaction = pickle.loads(data[16:])
+                                print(f"Received edit transaction")
+                                if Tx.is_valid(transaction):
+                                    print("Transaction is valid")
+
+                                    with open(pool_path, 'rb') as pool_file:
+                                        pool = pickle.load(pool_file)
+                                        for i in range(len(pool)):
+                                            if pool[i].id == transaction.id:
+                                                pool[i] = transaction
+
+                                    with open(pool_path, 'wb') as pool_file:
+                                        pickle.dump(pool, pool_file)
+
+                                    print("Transaction edited in the pool")
+                                else:
+                                    print(
+                                        "Transaction is invalid, discarding transaction")
+
+                            elif data[:18] == b'CANCEL_TRANSACTION':
+                                transaction = pickle.loads(data[18:])
+                                print(f"Received cancel transaction")
+                                if Tx.is_valid(transaction):
+                                    with open(pool_path, 'rb') as pool_file:
+                                        pool = pickle.load(pool_file)
+                                        for i in range(len(pool)):
+                                            if pool[i].id == transaction.id:
+                                                pool.pop(i)
+                                                break
+
+                                    with open(pool_path, 'wb') as pool_file:
+                                        pickle.dump(pool, pool_file)
+
+                                    print("Transaction removed from the pool")
+                                else:
+                                    print(
+                                        "Transaction is invalid, discarding transaction")
+
                             elif data[:7] == b'TXBLOCK':
-                                block = pickle.loads(data[7:])
+                                # CODE HERE TO STOP THE ONGOING MINING THREAD MAYBE XD IM GOIG INSANE
+                                pool_header_index = data.find(b'POOL')
+                                block = pickle.loads(data[7:pool_header_index])
+                                pool = pickle.loads(
+                                    data[pool_header_index + 4:])
                                 print(f"Received block: {block}")
-                                # validate the block
                                 if TxBlock.is_valid(block):
                                     print("Block is valid")
-                                    # open the ledger file and append the block to it
-                                    # with open(ledger_path, 'rb') as ledger_file:
-                                    #     ledger = pickle.load(ledger_file)
-                                    #     ledger.append(block)
+                                    for transaction in pool:
+                                        if not Tx.is_valid(transaction):
+                                            print("Pool is invalid")
+                                    print("Pool is valid")
 
-                                    # with open(ledger_path, 'wb') as ledger_file:
-                                    #     pickle.dump(ledger, ledger_file)
+                                    with open(pool_path, 'wb') as pool_file:
+                                        pickle.dump(pool, pool_file)
+
+                                    with open(ledger_path, 'rb') as ledger_file:
+                                        ledger = pickle.load(ledger_file)
+                                        ledger.append(block)
+
+                                    with open(ledger_path, 'wb') as ledger_file:
+                                        pickle.dump(ledger, ledger_file)
 
                                     print("Block added to the ledger")
-                                    # go back to the main menu but keep the connection open
-                                    print()
-                                    input(
-                                        "Press Enter to return to the main menu...")
                                 else:
                                     print("Block is invalid, discarding block")
-                                    print()
-                                    input("Press Enter to continue...")
-                            # if the header is header = b'POOL', then it is a pool
+
                             elif data[:4] == b'POOL':
                                 pool = pickle.loads(data[4:])
                                 print(f"Received pool: {pool}")
-                                # validate the pool
                                 for transaction in pool:
                                     if not Tx.is_valid(transaction):
                                         print("Pool is invalid")
                                 print("Pool is valid")
-                            # if the header is header = b'LEDGER', then it is a ledger. There is also a pool header after the ledger, split them
-                            elif data[:6] == b'LEDGER':
-                                # find the start of the pool header
-                                pool_header_index = data.find(b'POOL')
-                                ledger = pickle.loads(
-                                    data[6:pool_header_index])
-                                pool = pickle.loads(
-                                    data[pool_header_index + 4:])
-                                print(f"Received ledger: {ledger}")
-                                print(f"Received pool: {pool}")
-                                # validate the ledger
-                                for block in ledger:
-                                    if not TxBlock.is_valid(block):
-                                        print("Ledger is invalid")
-                                print("Ledger is valid")
-                                # check the difference between the ledger on the ledger_path and the received ledger
-                                # if the received ledger is longer, then replace the ledger on the ledger_path with the received ledger
-                                with open(ledger_path, 'rb') as ledger_file:
-                                    local_ledger = pickle.load(ledger_file)
-                                    if len(ledger) > len(local_ledger):
-                                        with open(ledger_path, 'wb') as ledger_file:
-                                            pickle.dump(ledger, ledger_file)
-                                        print("Ledger updated")
-                                    else:
-                                        print("Ledger not updated")
-                                # validate the pool
-                                for transaction in pool:
-                                    if not Tx.is_valid(transaction):
-                                        print("Pool is invalid")
-                                print("Pool is valid")
-                                # check the difference between the pool on the pool_path and the received pool
-                                # if the received pool is longer, then replace the pool on the pool_path with the received pool
                                 with open(pool_path, 'rb') as pool_file:
                                     local_pool = pickle.load(pool_file)
                                     if len(pool) > len(local_pool):
@@ -199,13 +185,62 @@ class ListeningThread:
                                         print("Pool updated")
                                     else:
                                         print("Pool not updated")
+
+                            elif data[:6] == b'LEDGER':
+                                pool_header_index = data.find(b'POOL')
+                                ledger = pickle.loads(
+                                    data[6:pool_header_index])
+                                pool = pickle.loads(
+                                    data[pool_header_index + 4:])
+                                print(
+                                    f"Received ledger with size: {len(ledger)}")
+                                print(f"Received pool with size: {len(pool)}")
+                                for block in ledger:
+                                    if not TxBlock.is_valid(block):
+                                        print("Ledger is invalid")
+                                print("Ledger is valid")
+                                with open(ledger_path, 'rb') as ledger_file:
+                                    local_ledger = pickle.load(ledger_file)
+                                    if len(ledger) > len(local_ledger):
+                                        with open(ledger_path, 'wb') as ledger_file:
+                                            pickle.dump(ledger, ledger_file)
+                                        print("Ledger updated")
+                                    else:
+                                        print(
+                                            "Ledger not updated, no new blocks received.")
+                                for transaction in pool:
+                                    if not Tx.is_valid(transaction):
+                                        print("Pool is invalid")
+                                print("Pool is valid")
+                                with open(pool_path, 'rb') as pool_file:
+                                    local_pool = pickle.load(pool_file)
+                                    if len(pool) > len(local_pool):
+                                        with open(pool_path, 'wb') as pool_file:
+                                            pickle.dump(pool, pool_file)
+                                        print("Pool updated")
+                                    else:
+                                        print(
+                                            "Pool not updated, no new transactions received.")
                                 print("Sync complete.")
-                            if not data:
-                                break
-                            # print('Received data')
+
+                            elif data[:9] == b'HANDSHAKE':
+                                other_username = data[9:].decode()
+                                if other_username == self.username:
+                                    os.system('cls' if os.name ==
+                                              'nt' else 'clear')
+                                    print(
+                                        "Cannot connect to yourself. Exiting...")
+                                    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+                                        s.connect((self.host, self.other_port))
+                                        s.sendall(self.SAME_USER_MESSAGE)
+                                    exit()
+                                    break
+                                print(f"Connected to user: {other_username}")
+
                             if data == self.STOP_MESSAGE:
                                 print('Stop message received. Stopping listener.')
                                 return
+
                             conn.sendall(data)
                 except OSError:
                     pass
@@ -244,67 +279,123 @@ class ListeningThread:
             self._write_users(users)
 
     def send_message(self, message):
-        # look at the current user's port and send the message to the other port
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-            s.connect((self.host, self.other_port))
-            s.sendall(message.encode())
-            print(f"Sent message: {message}")
+            try:
+                s.connect((self.host, self.other_port))
+                s.sendall(message.encode())
+                print(f"Sent message: {message}")
+            except ConnectionRefusedError:
+                print(
+                    "Connection refused. Unable to send message, please attempt to sync later.")
 
     def send_transaction(self, transaction):
-        header = b'TRANSACTION'
-        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-            s.connect((self.host, self.other_port))
-            s.sendall(header + pickle.dumps(transaction))
-            print(f"Sent transaction: {transaction}")
+        try:
+            header = b'CREATE_TRANSACTION'
+            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+                s.connect((self.host, self.other_port))
+                s.sendall(header + pickle.dumps(transaction))
+                print(f"Sent transaction: {transaction}")
+        except ConnectionRefusedError:
+            print(
+                "Connection refused. Unable to send transaction, please attempt to sync later.")
 
-    def send_block(self, block):
-        header = b'TXBLOCK'
-        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-            s.connect((self.host, self.other_port))
-            s.sendall(header + pickle.dumps(block))
-            print(f"Sent block: {block}")
+    def send_edit_transaction(self, transaction):
+        try:
+            header = b'EDIT_TRANSACTION'
+            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+                s.connect((self.host, self.other_port))
+                s.sendall(header + pickle.dumps(transaction))
+                print(f"Sent edit transaction: {transaction}")
+        except ConnectionRefusedError:
+            print(
+                "Connection refused. Unable to send edit transaction, please attempt to sync later.")
+
+    def send_cancel_transaction(self, transaction):
+        try:
+            header = b'CANCEL_TRANSACTION'
+            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+                s.connect((self.host, self.other_port))
+                s.sendall(header + pickle.dumps(transaction))
+                print(f"Sent cancel transaction: {transaction}")
+        except ConnectionRefusedError:
+            print(
+                "Connection refused. Unable to send cancel transaction, please attempt to sync later.")
+
+    def send_block(self, block, pool):
+        try:
+            header = b'TXBLOCK'
+            pool_header = b'POOL'
+            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+                s.connect((self.host, self.other_port))
+                s.sendall(header + pickle.dumps(block) +
+                          pool_header + pickle.dumps(pool))
+                print(f"Sent block: {block}")
+        except ConnectionRefusedError:
+            print(
+                "Connection refused. Unable to send block, please attempt to sync later.")
 
     def send_pool(self, pool):
-        header = b'POOL'
-        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-            s.connect((self.host, self.other_port))
-            s.sendall(header + pickle.dumps(pool))
-            print(f"Sent pool: {pool}")
+        try:
+            header = b'POOL'
+            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+                s.connect((self.host, self.other_port))
+                s.sendall(header + pickle.dumps(pool))
+                print(f"Sent pool: {pool}")
+        except ConnectionRefusedError:
+            print(
+                "Connection refused. Unable to send pool, please attempt to sync later.")
 
     def send_ledger(self, ledger):
-        header = b'LEDGER'
-        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-            s.connect((self.host, self.other_port))
-            s.sendall(header + pickle.dumps(ledger))
-            print(f"Sent ledger: {ledger}")
+        try:
+            header = b'LEDGER'
+            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+                s.connect((self.host, self.other_port))
+                s.sendall(header + pickle.dumps(ledger))
+                print(f"Sent ledger: {ledger}")
+        except ConnectionRefusedError:
+            print(
+                "Connection refused. Unable to send ledger, please attempt to sync later.")
 
     def sync_pool_ledger(self):
-        # send handshake message
-        header = b'HANDSHAKE'
-        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-            s.connect((self.host, self.other_port))
-            s.sendall(header + self.username.encode())
-            print(f"Sent handshake message")
-        # send in a single message, first the ledger and then the pool. should be separated by a delimiter
-        # get the ledger and pool
-        ledger = []
-        pool = []
-        with open(ledger_path, 'rb') as ledger_file:
-            ledger = pickle.load(ledger_file)
+        try:
+            header = b'HANDSHAKE'
+            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+                s.connect((self.host, self.other_port))
+                s.sendall(header + self.username.encode())
+                print(f"Sent handshake message")
 
-        with open(pool_path, 'rb') as pool_file:
-            pool = pickle.load(pool_file)
+            ledger = []
+            pool = []
+            with open(ledger_path, 'rb') as ledger_file:
+                ledger = pickle.load(ledger_file)
 
-        ledger_header = b'LEDGER'
-        pool_header = b'POOL'
-        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-            s.connect((self.host, self.other_port))
-            # print the size of the data being sent
-            print(f"Sending ledger size: {len(pickle.dumps(ledger))}")
-            print(f"Sending pool size: {len(pickle.dumps(pool))}")
+            with open(pool_path, 'rb') as pool_file:
+                pool = pickle.load(pool_file)
+
+            ledger_header = b'LEDGER'
+            pool_header = b'POOL'
+            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+                s.connect((self.host, self.other_port))
+                # print the size of the data being sent
+                print(f"Sending ledger size: {len(pickle.dumps(ledger))}")
+                print(f"Sending pool size: {len(pickle.dumps(pool))}")
+                print(
+                    f"Total size: {len(pickle.dumps(ledger)) + len(pickle.dumps(pool))}")
+                s.sendall(ledger_header + pickle.dumps(ledger) +
+                          pool_header + pickle.dumps(pool))
+                # print(f"Sent ledger: {ledger}")
+                # print(f"Sent pool: {pool}")
+        except ConnectionRefusedError:
             print(
-                f"Total size: {len(pickle.dumps(ledger)) + len(pickle.dumps(pool))}")
-            s.sendall(ledger_header + pickle.dumps(ledger) +
-                      pool_header + pickle.dumps(pool))
-            # print(f"Sent ledger: {ledger}")
-            # print(f"Sent pool: {pool}")
+                "Connection refused. Unable to sync pool and ledger, please attempt to sync later.")
+
+    def request_sync(self):
+        try:
+            header = b'SYNC_REQUEST'
+            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+                s.connect((self.host, self.other_port))
+                s.sendall(header)
+                print(f"Sent sync request")
+        except ConnectionRefusedError:
+            print(
+                "Connection refused. Unable to request sync, please attempt to sync later.")

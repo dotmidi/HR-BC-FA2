@@ -13,6 +13,7 @@ import hashlib
 from dataStructures import *
 import pickle
 import random
+import threading
 
 database_path = os.path.join(os.path.dirname(
     os.path.dirname(__file__)), 'data', 'goodchain.db')
@@ -28,7 +29,6 @@ hash_path = os.path.join(os.path.dirname(
 
 notifications_path = os.path.join(os.path.dirname(
     os.path.dirname(__file__)), 'data', 'notifications.dat')
-
 
 class HelperFunctions:
     def __init__(self):
