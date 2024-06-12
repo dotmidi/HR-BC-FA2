@@ -143,7 +143,6 @@ class ListeningThread:
                                         "Transaction is invalid, discarding transaction")
 
                             elif data[:7] == b'TXBLOCK':
-                                # CODE HERE TO STOP THE ONGOING MINING THREAD MAYBE XD IM GOIG INSANE
                                 pool_header_index = data.find(b'POOL')
                                 block = pickle.loads(data[7:pool_header_index])
                                 pool = pickle.loads(
@@ -151,24 +150,35 @@ class ListeningThread:
                                 print(f"Received block: {block}")
                                 if TxBlock.is_valid(block):
                                     print("Block is valid")
-                                    for transaction in pool:
-                                        if not Tx.is_valid(transaction):
-                                            print("Pool is invalid")
-                                    print("Pool is valid")
-
-                                    with open(pool_path, 'wb') as pool_file:
-                                        pickle.dump(pool, pool_file)
-
+                                    cont = True
+                                    # check the ledger as read, check all of the blocks in the ledger. If the block id matches any of the blocks in the ledger, discard the block
                                     with open(ledger_path, 'rb') as ledger_file:
                                         ledger = pickle.load(ledger_file)
-                                        ledger.append(block)
+                                        for b in ledger:
+                                            if b.id == block.id:
+                                                print(
+                                                    "Block already in the ledger, discarding block")
+                                                cont = False
 
-                                    with open(ledger_path, 'wb') as ledger_file:
-                                        pickle.dump(ledger, ledger_file)
+                                    if cont:
+                                            for transaction in pool:
+                                                if not Tx.is_valid(transaction):
+                                                    print("Pool is invalid")
+                                            print("Pool is valid")
 
-                                    print("Block added to the ledger")
-                                else:
-                                    print("Block is invalid, discarding block")
+                                            with open(pool_path, 'wb') as pool_file:
+                                                pickle.dump(pool, pool_file)
+
+                                            with open(ledger_path, 'rb') as ledger_file:
+                                                ledger = pickle.load(ledger_file)
+                                                ledger.append(block)
+
+                                            with open(ledger_path, 'wb') as ledger_file:
+                                                pickle.dump(ledger, ledger_file)
+
+                                            print("Block added to the ledger")
+                                    else:
+                                        print("Block not added to the ledger, already mined.")
 
                             elif data[:4] == b'POOL':
                                 pool = pickle.loads(data[4:])
