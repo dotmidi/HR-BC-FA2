@@ -3,12 +3,25 @@ import threading
 import os
 import json
 import pickle
-from helperFunctions import *
 from dataStructures import Tx, TxBlock
 
 connected_users_path = os.path.join(os.path.dirname(
     os.path.dirname(__file__)), 'data', 'connected_users.json')
 
+database_path = os.path.join(os.path.dirname(
+    os.path.dirname(__file__)), 'data', 'goodchain.db')
+
+ledger_path = os.path.join(os.path.dirname(
+    os.path.dirname(__file__)), 'data', 'ledger.dat')
+
+pool_path = os.path.join(os.path.dirname(
+    os.path.dirname(__file__)), 'data', 'pool.dat')
+
+hash_path = os.path.join(os.path.dirname(
+    os.path.dirname(__file__)), 'data', 'hash.dat')
+
+notifications_path = os.path.join(os.path.dirname(
+    os.path.dirname(__file__)), 'data', 'notifications.dat')
 
 class ListeningThread:
     STOP_MESSAGE = b'STOP_LISTENING'
@@ -87,7 +100,12 @@ class ListeningThread:
                                 break
 
                             if data[:18] == b'CREATE_TRANSACTION':
-                                transaction = pickle.loads(data[18:])
+                                notification_header_index = data.find(
+                                    b'NOTIFICATIONS')
+                                transaction = pickle.loads(
+                                    data[18:notification_header_index])
+                                notification = pickle.loads(
+                                    data[notification_header_index + 13:])
                                 print(f"Received transaction")
                                 if Tx.is_valid(transaction):
                                     print("Transaction is valid")
@@ -99,12 +117,27 @@ class ListeningThread:
                                         pickle.dump(pool, pool_file)
 
                                     print("Transaction added to the pool")
+
+                                    with open(notifications_path, 'rb') as notifications_file:
+                                        local_notifications = pickle.load(
+                                            notifications_file)
+                                        local_notifications.append(
+                                            notification)
+                                    with open(notifications_path, 'wb') as notifications_file:
+                                        pickle.dump(
+                                            local_notifications, notifications_file)
+                                    print("Notification added.")
                                 else:
                                     print(
                                         "Transaction is invalid, discarding transaction")
 
                             elif data[:16] == b'EDIT_TRANSACTION':
-                                transaction = pickle.loads(data[16:])
+                                notification_header_index = data.find(
+                                    b'NOTIFICATIONS')
+                                transaction = pickle.loads(
+                                    data[16:notification_header_index])
+                                notification = pickle.loads(
+                                    data[notification_header_index + 13:])
                                 print(f"Received edit transaction")
                                 if Tx.is_valid(transaction):
                                     print("Transaction is valid")
@@ -119,12 +152,27 @@ class ListeningThread:
                                         pickle.dump(pool, pool_file)
 
                                     print("Transaction edited in the pool")
+
+                                    with open(notifications_path, 'rb') as notifications_file:
+                                        local_notifications = pickle.load(
+                                            notifications_file)
+                                        local_notifications.append(
+                                            notification)
+                                    with open(notifications_path, 'wb') as notifications_file:
+                                        pickle.dump(
+                                            local_notifications, notifications_file)
+                                    print("Notification added.")
                                 else:
                                     print(
                                         "Transaction is invalid, discarding transaction")
 
                             elif data[:18] == b'CANCEL_TRANSACTION':
-                                transaction = pickle.loads(data[18:])
+                                notification_header_index = data.find(
+                                    b'NOTIFICATIONS')
+                                transaction = pickle.loads(
+                                    data[18:notification_header_index])
+                                notification = pickle.loads(
+                                    data[notification_header_index + 13:])
                                 print(f"Received cancel transaction")
                                 if Tx.is_valid(transaction):
                                     with open(pool_path, 'rb') as pool_file:
@@ -138,20 +186,33 @@ class ListeningThread:
                                         pickle.dump(pool, pool_file)
 
                                     print("Transaction removed from the pool")
+
+                                    with open(notifications_path, 'rb') as notifications_file:
+                                        local_notifications = pickle.load(
+                                            notifications_file)
+                                        local_notifications.append(
+                                            notification)
+                                    with open(notifications_path, 'wb') as notifications_file:
+                                        pickle.dump(
+                                            local_notifications, notifications_file)
+                                    print("Notification added.")
                                 else:
                                     print(
                                         "Transaction is invalid, discarding transaction")
 
                             elif data[:7] == b'TXBLOCK':
                                 pool_header_index = data.find(b'POOL')
+                                notifications_header_index = data.find(
+                                    b'NOTIFICATIONS')
                                 block = pickle.loads(data[7:pool_header_index])
                                 pool = pickle.loads(
-                                    data[pool_header_index + 4:])
+                                    data[pool_header_index + 4:notifications_header_index])
+                                notifications = pickle.loads(
+                                    data[notifications_header_index + 13:])
                                 print(f"Received block: {block}")
                                 if TxBlock.is_valid(block):
                                     print("Block is valid")
                                     cont = True
-                                    # check the ledger as read, check all of the blocks in the ledger. If the block id matches any of the blocks in the ledger, discard the block
                                     with open(ledger_path, 'rb') as ledger_file:
                                         ledger = pickle.load(ledger_file)
                                         for b in ledger:
@@ -161,24 +222,37 @@ class ListeningThread:
                                                 cont = False
 
                                     if cont:
-                                            for transaction in pool:
-                                                if not Tx.is_valid(transaction):
-                                                    print("Pool is invalid")
-                                            print("Pool is valid")
+                                        for transaction in pool:
+                                            if not Tx.is_valid(transaction):
+                                                print("Pool is invalid")
+                                        print("Pool is valid")
 
-                                            with open(pool_path, 'wb') as pool_file:
-                                                pickle.dump(pool, pool_file)
+                                        with open(pool_path, 'wb') as pool_file:
+                                            pickle.dump(pool, pool_file)
 
-                                            with open(ledger_path, 'rb') as ledger_file:
-                                                ledger = pickle.load(ledger_file)
-                                                ledger.append(block)
+                                        with open(ledger_path, 'rb') as ledger_file:
+                                            ledger = pickle.load(ledger_file)
+                                            ledger.append(block)
 
-                                            with open(ledger_path, 'wb') as ledger_file:
-                                                pickle.dump(ledger, ledger_file)
+                                        with open(ledger_path, 'wb') as ledger_file:
+                                            pickle.dump(ledger, ledger_file)
 
-                                            print("Block added to the ledger")
+                                        print("Block added to the ledger")
+
+                                        for notifications in notifications:
+                                            with open(notifications_path, 'rb') as notifications_file:
+                                                local_notifications = pickle.load(
+                                                    notifications_file)
+                                                local_notifications.append(
+                                                    notifications)
+                                            with open(notifications_path, 'wb') as notifications_file:
+                                                pickle.dump(
+                                                    local_notifications, notifications_file)
+                                        print(
+                                            "Notifications added.")
                                     else:
-                                        print("Block not added to the ledger, already mined.")
+                                        print(
+                                            "Block not added to the ledger, already mined.")
 
                             elif data[:4] == b'POOL':
                                 pool = pickle.loads(data[4:])
@@ -196,10 +270,10 @@ class ListeningThread:
                                     else:
                                         print("Pool not updated")
 
-                            elif data[:6] == b'LEDGER':
+                            elif data[12:18] == b'LEDGER':
                                 pool_header_index = data.find(b'POOL')
                                 ledger = pickle.loads(
-                                    data[6:pool_header_index])
+                                    data[18:pool_header_index])
                                 pool = pickle.loads(
                                     data[pool_header_index + 4:])
                                 print(
@@ -231,7 +305,23 @@ class ListeningThread:
                                     else:
                                         print(
                                             "Pool not updated, no new transactions received.")
+                                if data[:12] != b'NO_SEND_BACK':
+                                    self.sync_pool_ledger(True)
                                 print("Sync complete.")
+                                
+                            elif data[:14] == b'NOTIFICATIONS':
+                                notifications = pickle.loads(data[14:])
+                                print(f"Received notifications: {notifications}")
+                                with open(notifications_path, 'rb') as notifications_file:
+                                    local_notifications = pickle.load(
+                                        notifications_file)
+                                    for notification in notifications:
+                                        if notification not in local_notifications:
+                                            local_notifications.append(
+                                                notification)
+                                with open(notifications_path, 'wb') as notifications_file:
+                                    pickle.dump(local_notifications, notifications_file)
+                                print("Notifications added.")
 
                             elif data[:9] == b'HANDSHAKE':
                                 other_username = data[9:].decode()
@@ -298,47 +388,59 @@ class ListeningThread:
                 print(
                     "Connection refused. Unable to send message, please attempt to sync later.")
 
-    def send_transaction(self, transaction):
+    def send_transaction(self, transaction, notification):
         try:
+            notification_header = b'NOTIFICATIONS'
             header = b'CREATE_TRANSACTION'
             with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
                 s.connect((self.host, self.other_port))
-                s.sendall(header + pickle.dumps(transaction))
-                print(f"Sent transaction: {transaction}")
+                full_message = header + pickle.dumps(transaction) + \
+                    notification_header + pickle.dumps(notification)
+                s.sendall(full_message)
+                print(f"Sent transaction.")
         except ConnectionRefusedError:
             print(
                 "Connection refused. Unable to send transaction, please attempt to sync later.")
 
-    def send_edit_transaction(self, transaction):
+    def send_edit_transaction(self, transaction, notification):
         try:
             header = b'EDIT_TRANSACTION'
+            notification_header = b'NOTIFICATIONS'
             with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
                 s.connect((self.host, self.other_port))
-                s.sendall(header + pickle.dumps(transaction))
-                print(f"Sent edit transaction: {transaction}")
+                full_message = header + pickle.dumps(transaction) + \
+                    notification_header + pickle.dumps(notification)
+                s.sendall(full_message)
+                print(f"Sent edited transaction.")
         except ConnectionRefusedError:
             print(
                 "Connection refused. Unable to send edit transaction, please attempt to sync later.")
 
-    def send_cancel_transaction(self, transaction):
+    def send_cancel_transaction(self, transaction, notification):
         try:
             header = b'CANCEL_TRANSACTION'
+            notification_header = b'NOTIFICATIONS'
             with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
                 s.connect((self.host, self.other_port))
-                s.sendall(header + pickle.dumps(transaction))
-                print(f"Sent cancel transaction: {transaction}")
+                full_message = header + pickle.dumps(transaction) + \
+                    notification_header + pickle.dumps(notification)
+                s.sendall(full_message)
+                print(f"Sent cancelled transaction.")
         except ConnectionRefusedError:
             print(
                 "Connection refused. Unable to send cancel transaction, please attempt to sync later.")
 
-    def send_block(self, block, pool):
+    def send_block(self, block, pool, notifications):
         try:
             header = b'TXBLOCK'
             pool_header = b'POOL'
+            notification_header = b'NOTIFICATIONS'
             with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
                 s.connect((self.host, self.other_port))
                 s.sendall(header + pickle.dumps(block) +
-                          pool_header + pickle.dumps(pool))
+                          pool_header +
+                          pickle.dumps(pool) + notification_header +
+                          pickle.dumps(notifications))
                 print(f"Sent block: {block}")
         except ConnectionRefusedError:
             print(
@@ -365,8 +467,19 @@ class ListeningThread:
         except ConnectionRefusedError:
             print(
                 "Connection refused. Unable to send ledger, please attempt to sync later.")
+            
+    def send_notifications(self, notifications):
+        try:
+            header = b'NOTIFICATIONS'
+            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+                s.connect((self.host, self.other_port))
+                s.sendall(header + pickle.dumps(notifications))
+                print(f"Sent notifications: {notifications}")
+        except ConnectionRefusedError:
+            print(
+                "Connection refused. Unable to send notifications, please attempt to sync later.")
 
-    def sync_pool_ledger(self):
+    def sync_pool_ledger(self, sendback=False):
         try:
             header = b'HANDSHAKE'
             with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
@@ -384,28 +497,23 @@ class ListeningThread:
 
             ledger_header = b'LEDGER'
             pool_header = b'POOL'
+            no_sendback = b'NO_SEND_BACK'
+            yes_sendback = b'YE_SEND_BACK'
             with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
                 s.connect((self.host, self.other_port))
-                # print the size of the data being sent
                 print(f"Sending ledger size: {len(pickle.dumps(ledger))}")
                 print(f"Sending pool size: {len(pickle.dumps(pool))}")
                 print(
                     f"Total size: {len(pickle.dumps(ledger)) + len(pickle.dumps(pool))}")
-                s.sendall(ledger_header + pickle.dumps(ledger) +
-                          pool_header + pickle.dumps(pool))
+                if sendback:
+                    full_message = no_sendback + ledger_header + pickle.dumps(ledger) + \
+                        pool_header + pickle.dumps(pool)
+                else:
+                    full_message = yes_sendback + ledger_header + pickle.dumps(ledger) + \
+                        pool_header + pickle.dumps(pool)
+                s.sendall(full_message)
                 # print(f"Sent ledger: {ledger}")
                 # print(f"Sent pool: {pool}")
         except ConnectionRefusedError:
             print(
                 "Connection refused. Unable to sync pool and ledger, please attempt to sync later.")
-
-    def request_sync(self):
-        try:
-            header = b'SYNC_REQUEST'
-            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-                s.connect((self.host, self.other_port))
-                s.sendall(header)
-                print(f"Sent sync request")
-        except ConnectionRefusedError:
-            print(
-                "Connection refused. Unable to request sync, please attempt to sync later.")

@@ -14,6 +14,7 @@ from dataStructures import *
 import pickle
 import random
 import threading
+from synchronization import *
 
 database_path = os.path.join(os.path.dirname(
     os.path.dirname(__file__)), 'data', 'goodchain.db')
@@ -29,6 +30,7 @@ hash_path = os.path.join(os.path.dirname(
 
 notifications_path = os.path.join(os.path.dirname(
     os.path.dirname(__file__)), 'data', 'notifications.dat')
+
 
 class HelperFunctions:
     def __init__(self):
@@ -180,7 +182,7 @@ class HelperFunctions:
                         print("Date and time: " + str(txBlock.timeOfCreation))
                         print("Mined by: " + str(txBlock.minedBy))
                         print("Block hash: " + str(txBlock.blockHash))
-                        print("Block has " + str(txBlock.flags) + "/3 flags")
+                        print("Block has " + str(txBlock.flags) + "/1 flags")
                         print("Block has been validated by: " + str(txBlock.validatedBy)
                               if txBlock.validatedBy != [] else "Block has not been validated yet")
                         print("Previous block hash: " +
@@ -224,7 +226,7 @@ class HelperFunctions:
                                     print("Block hash: " +
                                           str(txBlock.blockHash))
                                     print("Block has " +
-                                          str(txBlock.flags) + "/3 flags")
+                                          str(txBlock.flags) + "/1 flags")
                                     print("Block has been validated by: " + str(txBlock.validatedBy)
                                           if txBlock.validatedBy != [] else "Block has not been validated yet")
                                     print("Previous block hash: " +
@@ -257,7 +259,7 @@ class HelperFunctions:
                               str(last_block.timeOfCreation))
                         print("Mined by: " + str(last_block.minedBy))
                         print("Block hash: " + str(last_block.blockHash))
-                        print("Block has " + str(last_block.flags) + "/3 flags")
+                        print("Block has " + str(last_block.flags) + "/1 flags")
                         print("Block has been validated by: " + str(last_block.validatedBy)
                               if last_block.validatedBy != [] else "Block has not been validated yet")
                         print("Previous block hash: " +
@@ -382,17 +384,17 @@ class AutomaticLoginActions:
                         block = pickle.load(ledger_file)
                         for txBlock in block:
                             print("Checking block " + str(txBlock.id) + "...")
-                            if txBlock.flags >= 3:
+                            if txBlock.flags >= 1:
                                 print("Block " + str(txBlock.id) +
-                                      " has 3/3 flags, block is fully validated")
+                                      " has 1/1 flags, block is fully validated")
                             elif txBlock.minedBy == username:
                                 print("Block currently has " +
-                                      str(txBlock.flags) + "/3 flags")
+                                      str(txBlock.flags) + "/1 flags")
                                 print("Block " + str(txBlock.id) +
                                       " was mined by you, skipping...")
                             elif txBlock.validatedBy != [] and username in txBlock.validatedBy:
                                 print("Block currently has " +
-                                      str(txBlock.flags) + "/3 flags")
+                                      str(txBlock.flags) + "/1 flags")
                                 print("Block " + str(txBlock.id) +
                                       " has already been validated by you, skipping...")
                             elif not txBlock.is_valid():
@@ -441,7 +443,7 @@ class AutomaticLoginActions:
                                 txBlock.flags += 1
                                 txBlock.validatedBy.append(username)
                                 print("Block now has " +
-                                      str(txBlock.flags) + "/3 flags")
+                                      str(txBlock.flags) + "/1 flags")
                                 ledger = []
                                 ledger_file.seek(0)
                                 try:
@@ -456,7 +458,7 @@ class AutomaticLoginActions:
                                         pickle.dump(block, ledger_filew)
                                 NotificationSystem.create_notification(
                                     txBlock.minedBy, "Block " + str(txBlock.id) + " has been validated by " + username)
-                                if txBlock.flags == 3 and txBlock.pendingReward != []:
+                                if txBlock.flags == 1 and txBlock.pendingReward != []:
                                     tx = Tx(type=REWARD)
                                     tx.add_input("MINING REWARD", 50)
                                     tx.add_input("TRANSACTION FEES",
@@ -474,6 +476,13 @@ class AutomaticLoginActions:
                                     pool.append(tx)
                                     with open(pool_path, 'wb') as pool_filew:
                                         pickle.dump(pool, pool_filew)
+                                        
+                                    # send pool over the network
+                                    with open(pool_path, 'rb') as pool_file:
+                                        pool = pickle.load(pool_file)
+                                        
+                                    ListeningThread.send_pool(pool) 
+                                    
                                     txBlock.pendingReward = []
                                     ledger = []
                                     ledger_file.seek(0)
@@ -488,12 +497,18 @@ class AutomaticLoginActions:
                                     with open(ledger_path, 'wb') as ledger_filew:
                                         for block in ledger:
                                             pickle.dump(block, ledger_filew)
+                                    
+                                    notifications = []
                                     for tx in txBlock.data:
                                         for addr, amount in tx.outputs:
                                             NotificationSystem.create_notification(
                                                 addr, "A block which you have a transaction in has been fully validated.")
+                                            notifications.append(addr)
+                                    ListeningThread.send_notifications(notifications)
+                                    notifications = []
                                     NotificationSystem.create_notification(
                                         txBlock.minedBy, "Block " + str(txBlock.id) + " has been fully validated and your mining reward has been added to the pool")
+                                    notifications.append([txBlock.minedBy, "Block " + str(txBlock.id) + " has been fully validated and your mining reward has been added to the pool"])
                     except pickle.UnpicklingError:
                         # print("End of ledger reached, no more blocks to check")
                         break
@@ -626,7 +641,7 @@ class WalletFunctions:
                 while True:
                     block = pickle.load(ledger_file)
                     for txBlock in block:
-                        if txBlock.flags == 3:
+                        if txBlock.flags == 1:
                             for tx in txBlock.data:
                                 for addr, amount in tx.outputs:
                                     if addr == username:
@@ -679,7 +694,7 @@ class WalletFunctions:
                 while True:
                     block = pickle.load(ledger_file)
                     for txBlock in block:
-                        if txBlock.flags == 3:
+                        if txBlock.flags == 1:
                             for tx in txBlock.data:
                                 for addr, amount in tx.outputs:
                                     if addr == username:
@@ -732,7 +747,7 @@ class WalletFunctions:
             try:
                 block = pickle.load(ledger_file)
                 for txBlock in block:
-                    if txBlock.flags < 3:
+                    if txBlock.flags < 1:
                         for tx in txBlock.data:
                             for addr, amount in tx.outputs:
                                 if addr == username:

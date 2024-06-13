@@ -21,8 +21,6 @@ PORT2 = 12346
 
 conn_threads = ListeningThread(HOST, PORT, PORT2)
 
-stop_mining_thread = False
-
 class UserInterface:
     def __init__(self):
         pass
@@ -108,8 +106,7 @@ class UserInterface:
             '8': UserInterface.view_user_keys,
             '9': UserInterface.validate_entire_ledger,
             '10': UserInterface.send_sync,
-            '11': UserInterface.request_sync,
-            '12': UserInterface.logout,
+            '11': UserInterface.logout
         }
 
         def default():
@@ -260,19 +257,25 @@ class UserInterface:
 
         pool.append(new_tx)
 
-        ListeningThread.send_transaction(conn_threads, new_tx)
-
         if not new_tx.is_valid():
             print("Invalid transaction. Please try again.")
             print()
             input("Press Enter to return to the main menu.")
             UserInterface.logged_in_menu()
 
+        notifications = []
+        notification = "You have received a transaction worth " + \
+            str(tx_output) + " coins from " + username + " in the pool."
+        notification_and_addr = (recipient, notification)
+        NotificationSystem.create_notification(
+            recipient, "You have received a transaction worth " + str(tx_output) + " coins from " + username + " in the pool.")
+
+        ListeningThread.send_transaction(
+            conn_threads, new_tx, notification_and_addr)
+
         with open(pool_path, 'wb') as pool_file:
             pickle.dump(pool, pool_file)
 
-        NotificationSystem.create_notification(
-            recipient, "You have received a transaction worth " + str(tx_output) + " coins from " + username + " in the pool.")
         HelperFunctions.validate_entire_ledger(False)
         print("Transaction added to the pool!")
         input("Press Enter to return to the main menu.")
@@ -526,14 +529,16 @@ class UserInterface:
             input("Press Enter to return to the main menu.")
             UserInterface.logged_in_menu()
 
-        # send the edited transaction over the network
-        ListeningThread.send_edit_transaction(conn_threads, new_tx)
+        notification = recipient, "You have received a transaction worth " + \
+            str(tx_output) + " coins from " + username + " in the pool."
+        NotificationSystem.create_notification(notification)
+
+        ListeningThread.send_edit_transaction(
+            conn_threads, new_tx, notification)
 
         with open(pool_path, 'wb') as pool_file:
             pickle.dump(pool, pool_file)
 
-        NotificationSystem.create_notification(
-            recipient, "A transaction destined for you from " + username + " has been edited in the pool.")
         HelperFunctions.validate_entire_ledger(False)
         print("Transaction edited.")
         print()
@@ -609,14 +614,18 @@ class UserInterface:
             input("Press Enter to return to the main menu.")
             UserInterface.logged_in_menu()
 
-        # send the cancelled transaction over the network
-        ListeningThread.send_cancel_transaction(conn_threads, tx)
+        sent_notification = []
+        notification = "A transaction destined for you from " + \
+            username + " has been cancelled."
+        sent_notification = (tx.outputs[0][0], notification)
+        NotificationSystem.create_notification(tx.outputs[0][0], notification)
+
+        ListeningThread.send_cancel_transaction(
+            conn_threads, tx, sent_notification)
 
         with open(pool_path, 'wb') as pool_file:
             pickle.dump(pool, pool_file)
 
-        NotificationSystem.create_notification(
-            tx.outputs[0][0], "A transaction destined for you from " + username + " has been cancelled.")
         HelperFunctions.validate_entire_ledger(False)
         print("Transaction cancelled.")
         print()
@@ -758,13 +767,20 @@ class UserInterface:
         pickle.dump(pool, fh)
         fh.close()
 
-        # send the new block over the network
-        ListeningThread.send_block(conn_threads, new_block, pool)
-
+        notifications = []
         for tx in new_block.data:
             for addr, amount in tx.outputs:
-                NotificationSystem.create_notification(
-                    addr, "A transaction destined for you from " + tx.inputs[0][0] + " has been mined in the ledger. Please verify the new block to receive the coins.")
+                notification = "A transaction destined for you from " + \
+                    tx.inputs[0][0] + \
+                    " has been mined in the ledger. Please verify the new block to receive the coins."
+                notification_and_addr = (addr, notification)
+                notifications.append(notification_and_addr)
+                NotificationSystem.create_notification(addr, notification)
+
+        # send the new block over the network
+        ListeningThread.send_block(
+            conn_threads, new_block, pool, notifications)
+
         print("Block added to the ledger.")
         print()
         input("Press Enter to return to the main menu.")
