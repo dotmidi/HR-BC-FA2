@@ -2,6 +2,7 @@
 * [X] Not allow 1 user to be connected from 2 different nodes
 * [X] Ending litening gracefully
 * [X] Sending
+
   * [X] Simple messages
   * [X] Items (Blocks, Tx, etc.)
     * [X] Newly created transactions
@@ -9,13 +10,16 @@
     * [X] Newly mined blocks
       * [X] Validating on the receiving side
 * [X] Receiving
+
   * [X] Simple messages
   * [X] Items (Blocks,Tx, etc.)
     * [X] Newly created transactions
     * [X] Newly mined blocks
 * [X] Sync on-demand
+
   * [X] When both nodes are occupied, they sync with each other. Pool and ledger files are sent to each other, they both check validity and come to a consensus.
 * [X] ISSUE: Who sends the newly registered user' transactions over the network?
+
   * [X] solution: the perosn who logs into the node with the newly registered user' transactions in the pool first
 * [X] FIX THE ERROR FROM THE PREVIOUS SHOWCASE, THE BALANCE SHOULD BE LOWER WHEN MAKING A TRANSACTION IMMEDIATLEY, NOT BE SHOWN AS USABLE
 * [X] Change all of the 3/3 validations required to 1 (because of just 2 nodes being utilized for the demo)
@@ -23,4 +27,5 @@
 * [X] the json for connected_users isn't shared, look for other solution
 * [X] clean up simulatenous mining print
 * [X] sync user databases
-  * [ ] Works, but remove the known_to_all, just yeet all of them at once to the other side and use the try catch exception to only insert new ones
+
+  * [X] Works, but remove the known_to_all, just yeet all of them at once to the other side and use the try catch exception to only insert new ones

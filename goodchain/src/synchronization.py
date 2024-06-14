@@ -215,7 +215,7 @@ class ListeningThread:
                                     data[pool_header_index + 4:notifications_header_index])
                                 notifications = pickle.loads(
                                     data[notifications_header_index + 13:])
-                                print(f"Received block: {block}")
+                                print(f"Received block")
                                 if TxBlock.is_valid(block):
                                     print("Block is valid")
                                     cont = True
@@ -262,23 +262,23 @@ class ListeningThread:
 
                             elif data[:4] == b'POOL':
                                 pool = pickle.loads(data[4:])
-                                print(f"Received pool: {pool}")
+                                print(f"Received pool")
                                 for transaction in pool:
                                     if not Tx.is_valid(transaction):
                                         print("Pool is invalid")
                                 print("Pool is valid")
                                 with open(pool_path, 'rb') as pool_file:
                                     local_pool = pickle.load(pool_file)
-                                    if len(pool) > len(local_pool):
-                                        with open(pool_path, 'wb') as pool_file:
-                                            pickle.dump(pool, pool_file)
-                                        print("Pool updated")
-                                    else:
-                                        print("Pool not updated")
+                                    for transaction in pool:
+                                        if transaction not in local_pool:
+                                            local_pool.append(transaction)
+                                    with open(pool_path, 'wb') as pool_file:
+                                        pickle.dump(local_pool, pool_file)
+                                    print("Pool updated")
 
                             elif data[:11] == b'ONLY_LEDGER':
                                 ledger = pickle.loads(data[11:])
-                                print(f"Received ledger: {ledger}")
+                                print(f"Received ledger")
                                 for block in ledger:
                                     if not TxBlock.is_valid(block):
                                         print("Ledger is invalid")
@@ -331,7 +331,7 @@ class ListeningThread:
                             elif data[:14] == b'NOTIFICATIONS':
                                 notifications = pickle.loads(data[14:])
                                 print(
-                                    f"Received notifications: {notifications}")
+                                    f"Received notifications")
                                 with open(notifications_path, 'rb') as notifications_file:
                                     local_notifications = pickle.load(
                                         notifications_file)
@@ -343,24 +343,24 @@ class ListeningThread:
                                     pickle.dump(local_notifications,
                                                 notifications_file)
                                 print("Notifications added.")
-                                
+
                             elif data[12:21] == b'NEW_USERS':
                                 users = pickle.loads(data[21:])
-                                print(f"Received new users: {users}")
+                                print(f"Received new users ")
                                 connection = sqlite3.connect(database_path)
                                 cursor = connection.cursor()
                                 for user in users:
                                     username = user[0]
                                     password = user[1]
-                                    known_to_all = user[2]
-                                    public_key = user[3]
-                                    private_key = user[4]
+                                    public_key = user[2]
+                                    private_key = user[3]
                                     try:
                                         cursor.execute(
-                                            'INSERT INTO registered_users VALUES (?, ?, ?, ?, ?)', (username, password, known_to_all, public_key, private_key))
+                                            'INSERT INTO registered_users VALUES (?, ?, ?, ?)', (username, password, public_key, private_key))
                                         connection.commit()
+                                        print(f"Added user: {username}")
                                     except Exception as e:
-                                        print("User already in database.")
+                                        pass
                                 print("New users added to the database.")
                                 connection.close()
                                 if data[:12] != b'NO_SEND_BACK':
@@ -525,9 +525,9 @@ class ListeningThread:
     def sync_new_users(self, sendback=False):
         connection = sqlite3.connect(database_path)
         cursor = connection.cursor()
-        cursor.execute('SELECT * FROM registered_users WHERE known_to_all = False')
+        cursor.execute('SELECT * FROM registered_users')
         users = cursor.fetchall()
-        
+
         try:
             header = b'NEW_USERS'
             no_sendback = b'NO_SEND_BACK'
@@ -539,12 +539,9 @@ class ListeningThread:
                 else:
                     full_message = yes_sendback + header + pickle.dumps(users)
                 s.sendall(full_message)
-
-            for user in users:
-                username = user[0]
-                cursor.execute('UPDATE registered_users SET known_to_all = True WHERE username = ?', (username,))
-            connection.commit()
-            connection.close()
+            with open(pool_path, 'rb') as pool_file:
+                pool = pickle.load(pool_file)
+                ListeningThread.send_pool(self, pool)
         except ConnectionRefusedError:
             print(
                 "Connection refused. Unable to sync new users, please attempt to sync later.")

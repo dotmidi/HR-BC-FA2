@@ -537,7 +537,7 @@ class UserInterface:
             print()
             input("Press Enter to return to the main menu.")
             UserInterface.logged_in_menu()
-            
+
         sent_notification = []
         notification = "A transaction destined for you from " + \
             username + " has been edited in the pool."
@@ -765,11 +765,10 @@ class UserInterface:
         new_block.minedBy = username
         new_block.pendingReward.append(total_fee)
         new_block.pendingReward.append(username)
-        
-        
+
         with open(ledger_path, 'rb') as ledger_file:
             ledger = pickle.load(ledger_file)
-            
+
         for block in ledger:
             if block.id == new_block.id:
                 print("A block with the same id already exists in the ledger.")
