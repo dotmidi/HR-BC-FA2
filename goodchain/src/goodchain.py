@@ -1,4 +1,4 @@
-from helperFunctions import HelperFunctions, database_path, ledger_path, pool_path, NotificationSystem, AutomaticLoginActions, WalletFunctions
+from helperFunctions import HelperFunctions, database_path, ledger_path, pool_path, NotificationSystem, AutomaticLoginActions, WalletFunctions, REWARD
 from synchronization import *
 import os
 import time
@@ -20,6 +20,7 @@ PORT = 12345
 PORT2 = 12346
 
 conn_threads = ListeningThread(HOST, PORT, PORT2)
+
 
 class UserInterface:
     def __init__(self):
@@ -73,6 +74,13 @@ class UserInterface:
             print()
             input("Press Enter to continue.")
             os.system('cls' if os.name == 'nt' else 'clear')
+            AutomaticLoginActions.check_tx_pool(username)
+            validated, ledger, pool = AutomaticLoginActions.check_ledger_blocks(username)
+            input("Press Enter to continue.")
+            os.system('cls' if os.name == 'nt' else 'clear')
+            if validated: 
+                ListeningThread.send_pool(conn_threads, pool)
+                ListeningThread.send_ledger(conn_threads, ledger)
         NotificationSystem.read_notifications(username)
         WalletFunctions.print_user_balance(username)
         NotificationSystem.print_blockchain_info()

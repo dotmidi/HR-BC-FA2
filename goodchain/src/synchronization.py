@@ -23,6 +23,7 @@ hash_path = os.path.join(os.path.dirname(
 notifications_path = os.path.join(os.path.dirname(
     os.path.dirname(__file__)), 'data', 'notifications.dat')
 
+
 class ListeningThread:
     STOP_MESSAGE = b'STOP_LISTENING'
     SAME_USER_MESSAGE = b'SAME_USER'
@@ -88,6 +89,7 @@ class ListeningThread:
                         print('Connected by', addr)
                         while True:
                             data = conn.recv(8192)
+                            print(f"Received data: {data}")
 
                             if not data:
                                 break
@@ -269,6 +271,19 @@ class ListeningThread:
                                         print("Pool updated")
                                     else:
                                         print("Pool not updated")
+                                        
+                            elif data[:11] == b'ONLY_LEDGER':
+                                ledger = pickle.loads(data[11:])
+                                print(f"Received ledger: {ledger}")
+                                for block in ledger:
+                                    if not TxBlock.is_valid(block):
+                                        print("Ledger is invalid")
+                                print("Ledger is valid")
+                                with open(ledger_path, 'rb') as ledger_file:
+                                    local_ledger = pickle.load(ledger_file)
+                                    with open(ledger_path, 'wb') as ledger_file:
+                                        pickle.dump(ledger, ledger_file)
+                                    print("Ledger updated")
 
                             elif data[12:18] == b'LEDGER':
                                 pool_header_index = data.find(b'POOL')
@@ -308,10 +323,11 @@ class ListeningThread:
                                 if data[:12] != b'NO_SEND_BACK':
                                     self.sync_pool_ledger(True)
                                 print("Sync complete.")
-                                
+
                             elif data[:14] == b'NOTIFICATIONS':
                                 notifications = pickle.loads(data[14:])
-                                print(f"Received notifications: {notifications}")
+                                print(
+                                    f"Received notifications: {notifications}")
                                 with open(notifications_path, 'rb') as notifications_file:
                                     local_notifications = pickle.load(
                                         notifications_file)
@@ -320,7 +336,8 @@ class ListeningThread:
                                             local_notifications.append(
                                                 notification)
                                 with open(notifications_path, 'wb') as notifications_file:
-                                    pickle.dump(local_notifications, notifications_file)
+                                    pickle.dump(local_notifications,
+                                                notifications_file)
                                 print("Notifications added.")
 
                             elif data[:9] == b'HANDSHAKE':
@@ -459,7 +476,7 @@ class ListeningThread:
 
     def send_ledger(self, ledger):
         try:
-            header = b'LEDGER'
+            header = b'ONLY_LEDGER'
             with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
                 s.connect((self.host, self.other_port))
                 s.sendall(header + pickle.dumps(ledger))
@@ -467,7 +484,7 @@ class ListeningThread:
         except ConnectionRefusedError:
             print(
                 "Connection refused. Unable to send ledger, please attempt to sync later.")
-            
+
     def send_notifications(self, notifications):
         try:
             header = b'NOTIFICATIONS'
