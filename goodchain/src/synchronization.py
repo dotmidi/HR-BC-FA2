@@ -3,6 +3,7 @@ import threading
 import os
 import json
 import pickle
+import sqlite3
 from dataStructures import Tx, TxBlock
 
 connected_users_path = os.path.join(os.path.dirname(
@@ -22,6 +23,9 @@ hash_path = os.path.join(os.path.dirname(
 
 notifications_path = os.path.join(os.path.dirname(
     os.path.dirname(__file__)), 'data', 'notifications.dat')
+
+user_database_path = os.path.join(os.path.dirname(
+    os.path.dirname(__file__)), 'data', 'goodchain.db')
 
 
 class ListeningThread:
@@ -339,6 +343,28 @@ class ListeningThread:
                                     pickle.dump(local_notifications,
                                                 notifications_file)
                                 print("Notifications added.")
+                                
+                            elif data[12:21] == b'NEW_USERS':
+                                users = pickle.loads(data[21:])
+                                print(f"Received new users: {users}")
+                                connection = sqlite3.connect(database_path)
+                                cursor = connection.cursor()
+                                for user in users:
+                                    username = user[0]
+                                    password = user[1]
+                                    known_to_all = user[2]
+                                    public_key = user[3]
+                                    private_key = user[4]
+                                    try:
+                                        cursor.execute(
+                                            'INSERT INTO registered_users VALUES (?, ?, ?, ?, ?)', (username, password, known_to_all, public_key, private_key))
+                                        connection.commit()
+                                    except Exception as e:
+                                        print("User already in database.")
+                                print("New users added to the database.")
+                                connection.close()
+                                if data[:12] != b'NO_SEND_BACK':
+                                    self.sync_new_users(True)
 
                             elif data[:9] == b'HANDSHAKE':
                                 other_username = data[9:].decode()
@@ -496,6 +522,33 @@ class ListeningThread:
             print(
                 "Connection refused. Unable to send notifications, please attempt to sync later.")
 
+    def sync_new_users(self, sendback=False):
+        connection = sqlite3.connect(database_path)
+        cursor = connection.cursor()
+        cursor.execute('SELECT * FROM registered_users WHERE known_to_all = False')
+        users = cursor.fetchall()
+        
+        try:
+            header = b'NEW_USERS'
+            no_sendback = b'NO_SEND_BACK'
+            yes_sendback = b'YE_SEND_BACK'
+            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+                s.connect((self.host, self.other_port))
+                if sendback:
+                    full_message = no_sendback + header + pickle.dumps(users)
+                else:
+                    full_message = yes_sendback + header + pickle.dumps(users)
+                s.sendall(full_message)
+
+            for user in users:
+                username = user[0]
+                cursor.execute('UPDATE registered_users SET known_to_all = True WHERE username = ?', (username,))
+            connection.commit()
+            connection.close()
+        except ConnectionRefusedError:
+            print(
+                "Connection refused. Unable to sync new users, please attempt to sync later.")
+
     def sync_pool_ledger(self, sendback=False):
         try:
             header = b'HANDSHAKE'
@@ -506,31 +559,35 @@ class ListeningThread:
 
             ledger = []
             pool = []
-            with open(ledger_path, 'rb') as ledger_file:
-                ledger = pickle.load(ledger_file)
+            try:
+                with open(ledger_path, 'rb') as ledger_file:
+                    ledger = pickle.load(ledger_file)
 
-            with open(pool_path, 'rb') as pool_file:
-                pool = pickle.load(pool_file)
+                with open(pool_path, 'rb') as pool_file:
+                    pool = pickle.load(pool_file)
 
-            ledger_header = b'LEDGER'
-            pool_header = b'POOL'
-            no_sendback = b'NO_SEND_BACK'
-            yes_sendback = b'YE_SEND_BACK'
-            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-                s.connect((self.host, self.other_port))
-                print(f"Sending ledger size: {len(pickle.dumps(ledger))}")
-                print(f"Sending pool size: {len(pickle.dumps(pool))}")
-                print(
-                    f"Total size: {len(pickle.dumps(ledger)) + len(pickle.dumps(pool))}")
-                if sendback:
-                    full_message = no_sendback + ledger_header + pickle.dumps(ledger) + \
-                        pool_header + pickle.dumps(pool)
-                else:
-                    full_message = yes_sendback + ledger_header + pickle.dumps(ledger) + \
-                        pool_header + pickle.dumps(pool)
-                s.sendall(full_message)
-                # print(f"Sent ledger: {ledger}")
-                # print(f"Sent pool: {pool}")
+                ledger_header = b'LEDGER'
+                pool_header = b'POOL'
+                no_sendback = b'NO_SEND_BACK'
+                yes_sendback = b'YE_SEND_BACK'
+                with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+                    s.connect((self.host, self.other_port))
+                    print(f"Sending ledger size: {len(pickle.dumps(ledger))}")
+                    print(f"Sending pool size: {len(pickle.dumps(pool))}")
+                    print(
+                        f"Total size: {len(pickle.dumps(ledger)) + len(pickle.dumps(pool))}")
+                    if sendback:
+                        full_message = no_sendback + ledger_header + pickle.dumps(ledger) + \
+                            pool_header + pickle.dumps(pool)
+                    else:
+                        full_message = yes_sendback + ledger_header + pickle.dumps(ledger) + \
+                            pool_header + pickle.dumps(pool)
+                    s.sendall(full_message)
+                    # print(f"Sent ledger: {ledger}")
+                    # print(f"Sent pool: {pool}")
+            except:
+                print("Nothing to sync.")
+                ListeningThread.sync_new_users(self)
         except ConnectionRefusedError:
             print(
                 "Connection refused. Unable to sync pool and ledger, please attempt to sync later.")

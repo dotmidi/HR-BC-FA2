@@ -22,3 +22,5 @@
 * [X] double check sent tx-txblock-ledger-pool that they are saved on sending and saved on receiving
 * [X] the json for connected_users isn't shared, look for other solution
 * [X] clean up simulatenous mining print
+* [X] sync user databases
+  * [ ] Works, but remove the known_to_all, just yeet all of them at once to the other side and use the try catch exception to only insert new ones

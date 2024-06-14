@@ -41,7 +41,7 @@ class HelperFunctions:
         cursor = connection.cursor()
 
         cursor.execute('''CREATE TABLE IF NOT EXISTS registered_users
-                        (username TEXT PRIMARY KEY, password TEXT, private_key TEXT, public_key TEXT)''')
+                        (username TEXT PRIMARY KEY, password TEXT, known_to_all BOOL,private_key TEXT, public_key TEXT)''')
 
         connection.commit()
 
@@ -118,8 +118,8 @@ class HelperFunctions:
         connection = sqlite3.connect(database_path)
         cursor = connection.cursor()
 
-        cursor.execute('INSERT INTO registered_users VALUES (?, ?, ?, ?)',
-                       (username, password, private_key, public_key))
+        cursor.execute('INSERT INTO registered_users VALUES (?, ?, ?, ?, ?)',
+                       (username, password, False, private_key, public_key))
         connection.commit()
         connection.close()
 
