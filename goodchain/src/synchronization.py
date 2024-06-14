@@ -89,7 +89,7 @@ class ListeningThread:
                         print('Connected by', addr)
                         while True:
                             data = conn.recv(8192)
-                            print(f"Received data: {data}")
+                            # print(f"Received data: {data}")
 
                             if not data:
                                 break
@@ -271,7 +271,7 @@ class ListeningThread:
                                         print("Pool updated")
                                     else:
                                         print("Pool not updated")
-                                        
+
                             elif data[:11] == b'ONLY_LEDGER':
                                 ledger = pickle.loads(data[11:])
                                 print(f"Received ledger: {ledger}")

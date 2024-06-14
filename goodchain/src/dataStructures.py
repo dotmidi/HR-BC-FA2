@@ -92,13 +92,15 @@ class TxBlock (CBlock):
         found = False
         nonce = random.randint(0, 1000000)
         starttime = time.time()
-        timing_variable = 1
+        timing_variable = 0
+        last_print_time = starttime
         while not found:
             h = digest.copy()
             h.update(bytes(str(nonce), 'utf-8'))
             hash_value = h.finalize()
 
-            if time.time() - starttime > 10:
+            if time.time() - starttime >= 10:
+                timing_variable = 1
                 timing_variable *= 50
 
             if hash_value[:leading_zero] == bytes('0'*leading_zero, 'utf-8'):
@@ -106,10 +108,15 @@ class TxBlock (CBlock):
                     found = True
                     self.nonce = nonce
                     break
-            sys.stdout.write("\rNonce: " + str(nonce))
-            sys.stdout.write("\tElapsed time: {:.2f}".format(
-                time.time() - starttime))
-            sys.stdout.flush()
+
+            if time.time() - last_print_time >= 0.5:
+                os.system('cls' if os.name == 'nt' else 'clear')
+                sys.stdout.write("\rNonce: " + str(nonce))
+                sys.stdout.write("\tElapsed time: {:.2f}".format(
+                    time.time() - starttime))
+                sys.stdout.flush()
+                last_print_time = time.time()
+
             nonce += 1
 
         self.blockHash = self.computeHash()

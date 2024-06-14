@@ -18,6 +18,7 @@
 * [X] ISSUE: Who sends the newly registered user' transactions over the network?
   * [X] solution: the perosn who logs into the node with the newly registered user' transactions in the pool first
 * [X] FIX THE ERROR FROM THE PREVIOUS SHOWCASE, THE BALANCE SHOULD BE LOWER WHEN MAKING A TRANSACTION IMMEDIATLEY, NOT BE SHOWN AS USABLE
-* [ ] Change all of the 3/3 validations required to 1 (because of just 2 nodes being utilized for the demo)
+* [X] Change all of the 3/3 validations required to 1 (because of just 2 nodes being utilized for the demo)
 * [X] double check sent tx-txblock-ledger-pool that they are saved on sending and saved on receiving
 * [X] the json for connected_users isn't shared, look for other solution
+* [X] clean up simulatenous mining print

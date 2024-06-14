@@ -60,7 +60,6 @@ class UserInterface:
 
     def logged_in_menu(first_login=False):
         os.system('cls' if os.name == 'nt' else 'clear')
-        print("User currently logged in: " + username)
         if first_login:
             AutomaticLoginActions.main(username)
             print("Establishing connection to the network...")
@@ -75,13 +74,15 @@ class UserInterface:
             input("Press Enter to continue.")
             os.system('cls' if os.name == 'nt' else 'clear')
             AutomaticLoginActions.check_tx_pool(username)
-            validated, ledger, pool = AutomaticLoginActions.check_ledger_blocks(username)
+            validated, ledger, pool = AutomaticLoginActions.check_ledger_blocks(
+                username)
             input("Press Enter to continue.")
             os.system('cls' if os.name == 'nt' else 'clear')
-            if validated: 
+            if validated:
                 ListeningThread.send_pool(conn_threads, pool)
                 ListeningThread.send_ledger(conn_threads, ledger)
         NotificationSystem.read_notifications(username)
+        print("User currently logged in: " + username)
         WalletFunctions.print_user_balance(username)
         NotificationSystem.print_blockchain_info()
         HelperFunctions.check_data_validity(False)
@@ -536,13 +537,15 @@ class UserInterface:
             print()
             input("Press Enter to return to the main menu.")
             UserInterface.logged_in_menu()
-
-        notification = recipient, "You have received a transaction worth " + \
-            str(tx_output) + " coins from " + username + " in the pool."
-        NotificationSystem.create_notification(notification)
+            
+        sent_notification = []
+        notification = "A transaction destined for you from " + \
+            username + " has been edited in the pool."
+        sent_notification = (recipient, notification)
+        NotificationSystem.create_notification(recipient, notification)
 
         ListeningThread.send_edit_transaction(
-            conn_threads, new_tx, notification)
+            conn_threads, new_tx, sent_notification)
 
         with open(pool_path, 'wb') as pool_file:
             pickle.dump(pool, pool_file)
@@ -762,6 +765,17 @@ class UserInterface:
         new_block.minedBy = username
         new_block.pendingReward.append(total_fee)
         new_block.pendingReward.append(username)
+        
+        
+        with open(ledger_path, 'rb') as ledger_file:
+            ledger = pickle.load(ledger_file)
+            
+        for block in ledger:
+            if block.id == new_block.id:
+                print("A block with the same id already exists in the ledger.")
+                print()
+                input("Press Enter to return to the main menu.")
+                UserInterface.logged_in_menu()
 
         ledger.append(new_block)
 
