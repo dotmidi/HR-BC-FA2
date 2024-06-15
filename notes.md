@@ -29,3 +29,17 @@
 * [X] sync user databases
 
   * [X] Works, but remove the known_to_all, just yeet all of them at once to the other side and use the try catch exception to only insert new ones
+
+
+
+
+* [ ] Test further
+  * [ ] Sign up 3 users in node1, 2 in node2
+  * [ ] login on both nodes, the registered users on both are synced
+  * [ ] mine block 0 on node1 with node2 connected
+  * [ ] log out node2 and log back in to validate mined block by node1
+  * [ ] create -> edit -> delete a transaction in node1
+  * [ ] log off node2
+  * [ ] create 4 transactions in node1 to be able to mine
+  * [ ] mine block 1 on node1 with node2 disconnected
+  * [ ] log node2 back in, sync

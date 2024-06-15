@@ -673,7 +673,7 @@ class UserInterface:
             new_block.id = 0
         else:
             previous_block = ledger[-1]
-            if previous_block.flags < 3:
+            if previous_block.flags < 1:
                 print(
                     "The previous block does not have enough validations to mine the next block.")
                 print()
@@ -766,15 +766,17 @@ class UserInterface:
         new_block.pendingReward.append(total_fee)
         new_block.pendingReward.append(username)
 
-        with open(ledger_path, 'rb') as ledger_file:
-            ledger = pickle.load(ledger_file)
-
-        for block in ledger:
-            if block.id == new_block.id:
-                print("A block with the same id already exists in the ledger.")
-                print()
-                input("Press Enter to return to the main menu.")
-                UserInterface.logged_in_menu()
+        try:
+            with open(ledger_path, 'rb') as ledger_file:
+                ledger = pickle.load(ledger_file)
+                for block in ledger:
+                    if block.id == new_block.id:
+                        print("A block with the same id already exists in the ledger.")
+                        print()
+                        input("Press Enter to return to the main menu.")
+                        UserInterface.logged_in_menu()
+        except (EOFError, FileNotFoundError):
+            ledger = []
 
         ledger.append(new_block)
 

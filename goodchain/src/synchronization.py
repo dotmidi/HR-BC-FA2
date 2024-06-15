@@ -92,7 +92,7 @@ class ListeningThread:
                         print("Received connection")
                         print('Connected by', addr)
                         while True:
-                            data = conn.recv(8192)
+                            data = conn.recv(16384)
                             # print(f"Received data: {data}")
 
                             if not data:
@@ -219,13 +219,15 @@ class ListeningThread:
                                 if TxBlock.is_valid(block):
                                     print("Block is valid")
                                     cont = True
-                                    with open(ledger_path, 'rb') as ledger_file:
-                                        ledger = pickle.load(ledger_file)
-                                        for b in ledger:
-                                            if b.id == block.id:
-                                                print(
-                                                    "Block already in the ledger, discarding block")
-                                                cont = False
+                                    try:
+                                        with open(ledger_path, 'rb') as ledger_file:
+                                            ledger = pickle.load(ledger_file)
+                                            for b in ledger:
+                                                if b.id == block.id:
+                                                    print("Block already in the ledger, discarding block")
+                                                    cont = False
+                                    except EOFError:
+                                        ledger = []
 
                                     if cont:
                                         for transaction in pool:
@@ -237,7 +239,10 @@ class ListeningThread:
                                             pickle.dump(pool, pool_file)
 
                                         with open(ledger_path, 'rb') as ledger_file:
-                                            ledger = pickle.load(ledger_file)
+                                            try:
+                                                ledger = pickle.load(ledger_file)
+                                            except EOFError:
+                                                ledger = []
                                             ledger.append(block)
 
                                         with open(ledger_path, 'wb') as ledger_file:
