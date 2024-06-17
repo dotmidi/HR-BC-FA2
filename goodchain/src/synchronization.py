@@ -274,9 +274,16 @@ class ListeningThread:
                                 print("Pool is valid")
                                 with open(pool_path, 'rb') as pool_file:
                                     local_pool = pickle.load(pool_file)
+                                    local_transactions = []
+                                    received_transactions = []
+                                    for transaction in local_pool:
+                                        local_transactions.append(transaction.id)
                                     for transaction in pool:
-                                        if transaction not in local_pool:
-                                            local_pool.append(transaction)
+                                        received_transactions.append(transaction.id)
+                                    new_transactions = [
+                                        transaction for transaction in pool if transaction.id not in local_transactions]
+                                    for transaction in new_transactions:
+                                        local_pool.append(transaction)
                                     with open(pool_path, 'wb') as pool_file:
                                         pickle.dump(local_pool, pool_file)
                                     print("Pool updated")
@@ -308,7 +315,10 @@ class ListeningThread:
                                         print("Ledger is invalid")
                                 print("Ledger is valid")
                                 with open(ledger_path, 'rb') as ledger_file:
-                                    local_ledger = pickle.load(ledger_file)
+                                    try:
+                                        local_ledger = pickle.load(ledger_file)
+                                    except EOFError:
+                                        local_ledger = []
                                     if len(ledger) > len(local_ledger):
                                         with open(ledger_path, 'wb') as ledger_file:
                                             pickle.dump(ledger, ledger_file)
@@ -500,7 +510,7 @@ class ListeningThread:
             with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
                 s.connect((self.host, self.other_port))
                 s.sendall(header + pickle.dumps(pool))
-                print(f"Sent pool: {pool}")
+                print(f"Sent pool")
         except ConnectionRefusedError:
             print(
                 "Connection refused. Unable to send pool, please attempt to sync later.")

@@ -760,6 +760,7 @@ class UserInterface:
             print()
             input("Press Enter to return to the main menu.")
             UserInterface.logged_in_menu()
+        print("Mining took " + str(elapsed_time) + " seconds.")
         print("Mining successful.")
 
         new_block.minedBy = username

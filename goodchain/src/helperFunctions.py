@@ -496,7 +496,6 @@ class AutomaticLoginActions:
                                         for block in ledger:
                                             pickle.dump(block, ledger_filew)
 
-                                    # save the new ledger in a variable
                                     ledger = []
                                     with open(ledger_path, 'rb') as ledger_file:
                                         ledger = pickle.load(ledger_file)
@@ -600,12 +599,13 @@ class NotificationSystem:
                 while True:
                     block = pickle.load(ledger_file)
                     for txBlock in block:
-                        for tx in txBlock.data:
-                            if tx.inputs[0][0] == "SIGN UP REWARD":
-                                for addr, amount in tx.outputs:
-                                    total_balance += amount
-                            elif tx.inputs[0][0] == "MINING REWARD":
-                                total_balance += 50
+                        if txBlock.flags >= 1:
+                            for tx in txBlock.data:
+                                if tx.inputs[0][0] == "SIGN UP REWARD":
+                                    for addr, amount in tx.outputs:
+                                        total_balance += amount
+                                elif tx.inputs[0][0] == "MINING REWARD":
+                                    total_balance += 50
             except EOFError:
                 pass
         print("Total GoodCoins in circulation: " + str(total_balance))
