@@ -204,6 +204,8 @@ class HelperFunctions:
                 pass
 
     def view_ledger():
+        print("Please note: if you have not logged in recently, the ledger may be out of date. Log in to update the ledger.")
+        print()
         choice = input(
             "How would you like to view the ledger?\n1. From the beginning to the end\n2. Specific block (by id)\n3. Only the last block\nEnter your choice (1/2/3): ")
         if choice == "1":
