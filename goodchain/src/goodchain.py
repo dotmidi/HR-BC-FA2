@@ -760,7 +760,7 @@ class UserInterface:
             print()
             input("Press Enter to return to the main menu.")
             UserInterface.logged_in_menu()
-        print("Mining took " + str(elapsed_time) + " seconds.")
+        print("Mining took {:.2f} seconds.".format(elapsed_time))
         print("Mining successful.")
 
         new_block.minedBy = username
@@ -772,7 +772,8 @@ class UserInterface:
                 ledger = pickle.load(ledger_file)
                 for block in ledger:
                     if block.id == new_block.id:
-                        print("A block with the same id already exists in the ledger.")
+                        print(
+                            "A block with the same id already exists in the ledger.")
                         print()
                         input("Press Enter to return to the main menu.")
                         UserInterface.logged_in_menu()

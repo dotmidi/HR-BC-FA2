@@ -98,7 +98,7 @@ class ListeningThread:
                             if not data:
                                 break
 
-                            print(f"Received data size: {len(data)}")
+                            # print(f"Received data size: {len(data)}")
 
                             if data == self.SAME_USER_MESSAGE:
                                 print("Cannot connect to yourself. Exiting...")
@@ -215,6 +215,7 @@ class ListeningThread:
                                     data[pool_header_index + 4:notifications_header_index])
                                 notifications = pickle.loads(
                                     data[notifications_header_index + 13:])
+                                print()
                                 print(f"Received block")
                                 if TxBlock.is_valid(block):
                                     print("Block is valid")
@@ -224,12 +225,15 @@ class ListeningThread:
                                             ledger = pickle.load(ledger_file)
                                             for b in ledger:
                                                 if b.id == block.id:
-                                                    print("Block already in the ledger, discarding block")
+                                                    print(
+                                                        "Block already in the ledger, discarding block")
                                                     cont = False
                                     except EOFError:
                                         ledger = []
 
                                     if cont:
+                                        print()
+                                        print("Checking pool validity")
                                         for transaction in pool:
                                             if not Tx.is_valid(transaction):
                                                 print("Pool is invalid")
@@ -240,7 +244,8 @@ class ListeningThread:
 
                                         with open(ledger_path, 'rb') as ledger_file:
                                             try:
-                                                ledger = pickle.load(ledger_file)
+                                                ledger = pickle.load(
+                                                    ledger_file)
                                             except EOFError:
                                                 ledger = []
                                             ledger.append(block)
@@ -248,6 +253,7 @@ class ListeningThread:
                                         with open(ledger_path, 'wb') as ledger_file:
                                             pickle.dump(ledger, ledger_file)
 
+                                        print()
                                         print("Block added to the ledger")
 
                                         for notifications in notifications:
@@ -260,13 +266,14 @@ class ListeningThread:
                                                 pickle.dump(
                                                     local_notifications, notifications_file)
                                         print(
-                                            "Notifications added.")
+                                            "Notifications added")
                                     else:
                                         print(
                                             "Block not added to the ledger, already mined.")
 
                             elif data[:4] == b'POOL':
                                 pool = pickle.loads(data[4:])
+                                print()
                                 print(f"Received pool")
                                 for transaction in pool:
                                     if not Tx.is_valid(transaction):
@@ -277,9 +284,11 @@ class ListeningThread:
                                     local_transactions = []
                                     received_transactions = []
                                     for transaction in local_pool:
-                                        local_transactions.append(transaction.id)
+                                        local_transactions.append(
+                                            transaction.id)
                                     for transaction in pool:
-                                        received_transactions.append(transaction.id)
+                                        received_transactions.append(
+                                            transaction.id)
                                     new_transactions = [
                                         transaction for transaction in pool if transaction.id not in local_transactions]
                                     for transaction in new_transactions:
@@ -290,6 +299,7 @@ class ListeningThread:
 
                             elif data[:11] == b'ONLY_LEDGER':
                                 ledger = pickle.loads(data[11:])
+                                print()
                                 print(f"Received ledger")
                                 for block in ledger:
                                     if not TxBlock.is_valid(block):
@@ -307,9 +317,9 @@ class ListeningThread:
                                     data[18:pool_header_index])
                                 pool = pickle.loads(
                                     data[pool_header_index + 4:])
-                                print(
-                                    f"Received ledger with size: {len(ledger)}")
-                                print(f"Received pool with size: {len(pool)}")
+                                # print(
+                                #     f"Received ledger with size: {len(ledger)}")
+                                # print(f"Received pool with size: {len(pool)}")
                                 for block in ledger:
                                     if not TxBlock.is_valid(block):
                                         print("Ledger is invalid")
@@ -510,7 +520,6 @@ class ListeningThread:
             with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
                 s.connect((self.host, self.other_port))
                 s.sendall(header + pickle.dumps(pool))
-                print(f"Sent pool")
         except ConnectionRefusedError:
             print(
                 "Connection refused. Unable to send pool, please attempt to sync later.")
@@ -521,7 +530,6 @@ class ListeningThread:
             with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
                 s.connect((self.host, self.other_port))
                 s.sendall(header + pickle.dumps(ledger))
-                print(f"Sent ledger: {ledger}")
         except ConnectionRefusedError:
             print(
                 "Connection refused. Unable to send ledger, please attempt to sync later.")
